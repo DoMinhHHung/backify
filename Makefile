@@ -2,7 +2,7 @@ DATABASE_URL ?= postgres://backify:backify@localhost:5432/backify?sslmode=disabl
 CONTROL_PLANE_DIR := services/control-plane
 MIGRATIONS_DIR := $(CONTROL_PLANE_DIR)/migrations
 
-.PHONY: infra-up infra-down infra-logs run build test migrate-up migrate-down
+.PHONY: infra-up infra-down infra-logs run build test test-integration migrate-up migrate-down
 
 infra-up:
 	docker compose -f deployments/docker-compose.yml up -d
@@ -22,6 +22,9 @@ build:
 
 test:
 	cd $(CONTROL_PLANE_DIR) && go test ./... -v
+
+test-integration:
+	cd $(CONTROL_PLANE_DIR) && go test ./... -tags=integration -v
 
 migrate-up:
 	migrate -path $(MIGRATIONS_DIR) -database "$(DATABASE_URL)" up
