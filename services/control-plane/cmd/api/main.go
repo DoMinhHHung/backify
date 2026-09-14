@@ -13,7 +13,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"backify/services/control-plane/internal/adapter/postgres"
+	"backify/services/control-plane/internal/handler"
+	"backify/services/control-plane/internal/port"
+	"backify/services/control-plane/internal/usecase"
 )
+
+type noopPublisher struct{}
+
+func (noopPublisher) Publish(ctx context.Context, event port.Event) error {
+	return nil
+}
 
 type healthResponse struct {
 	Status string `json:"status"`
@@ -61,6 +72,22 @@ func main() {
 		}
 		json.NewEncoder(w).Encode(healthResponse{Status: "ok", DB: dbStatus})
 	})
+
+	projectRepo := postgres.NewProjectRepo(pool)
+	entityRepo := postgres.NewEntityRepo(pool)
+	fieldRepo := postgres.NewFieldRepo(pool)
+	moduleRepo := postgres.NewModuleRepo(pool)
+	publisher := noopPublisher{}
+
+	h := handler.New(
+		usecase.NewCreateProject(projectRepo, publisher),
+		usecase.NewGetProject(projectRepo),
+		usecase.NewAddEntity(projectRepo, entityRepo),
+		usecase.NewAddField(entityRepo, fieldRepo),
+		usecase.NewDeleteField(fieldRepo, moduleRepo, publisher),
+		usecase.NewConfigModule(projectRepo, fieldRepo, moduleRepo, publisher),
+	)
+	h.RegisterRoutes(router)
 
 	server := &http.Server{
 		Addr:         ":" + port,
