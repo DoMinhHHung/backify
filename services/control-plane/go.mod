@@ -9,4 +9,5 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/testcontainers/testcontainers-go v0.34.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.34.0
+	github.com/testcontainers/testcontainers-go/modules/rabbitmq v0.34.0
 )

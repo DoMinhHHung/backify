@@ -2,34 +2,17 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"backify/services/control-plane/internal/adapter/postgres"
-	"backify/services/control-plane/internal/handler"
-	"backify/services/control-plane/internal/port"
-	"backify/services/control-plane/internal/usecase"
+	app "backify/services/control-plane/internal"
 )
-
-type noopPublisher struct{}
-
-func (noopPublisher) Publish(ctx context.Context, event port.Event) error {
-	return nil
-}
-
-type healthResponse struct {
-	Status string `json:"status"`
-	DB     string `json:"db"`
-}
 
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -45,53 +28,22 @@ func main() {
 		databaseURL = "postgres://backify:backify@localhost:5432/backify?sslmode=disable"
 	}
 
+	rabbitmqURL := os.Getenv("RABBITMQ_URL")
+	if rabbitmqURL == "" {
+		rabbitmqURL = "amqp://backify:backify@localhost:5672/"
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	pool, err := pgxpool.New(ctx, databaseURL)
+	application, err := app.New(ctx, app.Config{DatabaseURL: databaseURL, RabbitMQURL: rabbitmqURL})
 	cancel()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create postgres pool")
+		log.Fatal().Err(err).Msg("failed to wire application")
 	}
-	defer pool.Close()
-
-	router := chi.NewRouter()
-
-	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		dbStatus := "ok"
-		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
-		defer cancel()
-		if err := pool.Ping(ctx); err != nil {
-			dbStatus = "down"
-			log.Error().Err(err).Msg("db health check failed")
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if dbStatus != "ok" {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-		json.NewEncoder(w).Encode(healthResponse{Status: "ok", DB: dbStatus})
-	})
-
-	projectRepo := postgres.NewProjectRepo(pool)
-	entityRepo := postgres.NewEntityRepo(pool)
-	fieldRepo := postgres.NewFieldRepo(pool)
-	moduleRepo := postgres.NewModuleRepo(pool)
-	publisher := noopPublisher{}
-
-	h := handler.New(
-		usecase.NewCreateProject(projectRepo, publisher),
-		usecase.NewGetProject(projectRepo),
-		usecase.NewAddEntity(projectRepo, entityRepo),
-		usecase.NewAddField(entityRepo, fieldRepo),
-		usecase.NewDeleteField(fieldRepo, moduleRepo, publisher),
-		usecase.NewConfigModule(projectRepo, fieldRepo, moduleRepo, publisher),
-	)
-	h.RegisterRoutes(router)
+	defer application.Close()
 
 	server := &http.Server{
 		Addr:         ":" + port,
-		Handler:      router,
+		Handler:      application.Router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
