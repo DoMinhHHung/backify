@@ -63,8 +63,9 @@ services:
       timeout: 5s
       retries: 10
 
+  # Docker Hub minio/minio đã bị gỡ (2026). Official image hiện trên Quay.
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: backify-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
