@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -46,11 +47,37 @@ func setupTestPool(t *testing.T) *pgxpool.Pool {
 	}
 	t.Cleanup(pool.Close)
 
-	if _, err := pool.Exec(ctx, string(migrationSQL)); err != nil {
+	if err := waitUntilReachable(ctx, pool, 10, 500*time.Millisecond); err != nil {
+		t.Fatalf("database not reachable after container ready: %v", err)
+	}
+
+	if err := execWithRetry(ctx, pool, string(migrationSQL), 5, 500*time.Millisecond); err != nil {
 		t.Fatalf("failed to run migration: %v", err)
 	}
 
 	return pool
+}
+
+func waitUntilReachable(ctx context.Context, pool *pgxpool.Pool, attempts int, delay time.Duration) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		if err = pool.Ping(ctx); err == nil {
+			return nil
+		}
+		time.Sleep(delay)
+	}
+	return err
+}
+
+func execWithRetry(ctx context.Context, pool *pgxpool.Pool, sql string, attempts int, delay time.Duration) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		if _, err = pool.Exec(ctx, sql); err == nil {
+			return nil
+		}
+		time.Sleep(delay)
+	}
+	return err
 }
 
 func TestProjectRepo_CreateAndGetByID(t *testing.T) {
