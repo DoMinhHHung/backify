@@ -17,6 +17,7 @@ const (
 	CodeFieldInUse               ErrorCode = "FIELD_IN_USE"
 	CodeInvalidFieldType         ErrorCode = "INVALID_FIELD_TYPE"
 	CodeModuleNotFound           ErrorCode = "MODULE_NOT_FOUND"
+	CodeModuleNotEnabled         ErrorCode = "MODULE_NOT_ENABLED"
 	CodeInvalidModuleName        ErrorCode = "INVALID_MODULE_NAME"
 	CodeFunctionNotFound         ErrorCode = "FUNCTION_NOT_FOUND"
 )
@@ -51,6 +52,7 @@ var (
 	ErrSystemFieldCannotDelete  = NewError(CodeSystemFieldCannotDelete, "system field cannot be deleted")
 	ErrInvalidFieldType         = NewError(CodeInvalidFieldType, "invalid field type")
 	ErrModuleNotFound           = NewError(CodeModuleNotFound, "module not found")
+	ErrModuleNotEnabled         = NewError(CodeModuleNotEnabled, "module is not enabled in this plan; only auth is available in MVP")
 	ErrInvalidModuleName        = NewError(CodeInvalidModuleName, "invalid module name")
 	ErrFunctionNotFound         = NewError(CodeFunctionNotFound, "function not found")
 )

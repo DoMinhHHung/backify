@@ -40,6 +40,10 @@ var systemFieldNames = map[string]bool{
 	"password": true,
 }
 
+var reservedFieldTypes = map[string]FieldType{
+	"email": FieldTypeEmail,
+}
+
 type Field struct {
 	ID        string
 	EntityID  string
@@ -75,6 +79,13 @@ func NewField(entityID, name string, fieldType FieldType) (*Field, error) {
 		return nil, ErrInvalidFieldType.WithDetails(map[string]interface{}{
 			"field": "type",
 			"value": string(fieldType),
+		})
+	}
+
+	if requiredType, isReserved := reservedFieldTypes[name]; isReserved && fieldType != requiredType {
+		return nil, ErrInvalidInput.WithDetails(map[string]interface{}{
+			"field":  "type",
+			"reason": "field name \"" + name + "\" is reserved and must have type \"" + string(requiredType) + "\"",
 		})
 	}
 

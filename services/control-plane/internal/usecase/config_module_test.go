@@ -58,7 +58,7 @@ func TestConfigModule_InvalidFunction(t *testing.T) {
 	}
 }
 
-func TestConfigModule_UnspecifiedModuleFunctionsRejected(t *testing.T) {
+func TestConfigModule_NonAuthModuleDisabled(t *testing.T) {
 	projects := newMockProjectRepo()
 	fields := newMockFieldRepo()
 	modules := newMockModuleRepo()
@@ -77,8 +77,8 @@ func TestConfigModule_UnspecifiedModuleFunctionsRejected(t *testing.T) {
 		FieldID:   field.ID,
 		Enabled:   true,
 	})
-	if err != domain.ErrFunctionNotFound {
-		t.Fatalf("expected ErrFunctionNotFound, got %v", err)
+	if err != domain.ErrModuleNotEnabled {
+		t.Fatalf("expected ErrModuleNotEnabled, got %v", err)
 	}
 }
 

@@ -98,6 +98,8 @@ func mapError(err error) (int, *errorBody) {
 	switch domainErr.Code {
 	case domain.CodeInvalidInput, domain.CodeInvalidFieldType, domain.CodeInvalidModuleName:
 		return http.StatusBadRequest, body
+	case domain.CodeModuleNotEnabled:
+		return http.StatusForbidden, body
 	case domain.CodeProjectNotFound, domain.CodeEntityNotFound, domain.CodeFieldNotFound,
 		domain.CodeModuleNotFound, domain.CodeFunctionNotFound:
 		return http.StatusNotFound, body

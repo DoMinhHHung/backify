@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog/log"
 
 	"backify/services/control-plane/internal/port"
 )
@@ -39,13 +40,19 @@ func NewPublisher(conn *amqp.Connection) (*Publisher, error) {
 func (p *Publisher) Publish(ctx context.Context, event port.Event) error {
 	body, err := json.Marshal(event.Payload)
 	if err != nil {
-		return err
+		log.Error().Err(err).Str("event", event.Name).Msg("failed to marshal event payload, dropping event")
+		return nil
 	}
 
-	return p.channel.PublishWithContext(ctx, exchangeName, event.Name, false, false, amqp.Publishing{
+	if err := p.channel.PublishWithContext(ctx, exchangeName, event.Name, false, false, amqp.Publishing{
 		ContentType: "application/json",
 		Body:        body,
-	})
+	}); err != nil {
+		log.Error().Err(err).Str("event", event.Name).Msg("failed to publish event, dropping event")
+		return nil
+	}
+
+	return nil
 }
 
 func (p *Publisher) Close() error {

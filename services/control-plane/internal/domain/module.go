@@ -21,6 +21,10 @@ func (m ModuleName) Valid() bool {
 	}
 }
 
+func (m ModuleName) Enabled() bool {
+	return m == ModuleAuth
+}
+
 var authFunctions = []string{"signup", "signin", "forgotPassword", "oauth"}
 
 var moduleFunctions = map[ModuleName][]string{

@@ -30,6 +30,17 @@ func TestNewModule_EmptyProjectID(t *testing.T) {
 	}
 }
 
+func TestModuleName_Enabled(t *testing.T) {
+	if !ModuleAuth.Enabled() {
+		t.Fatal("expected auth module to be enabled in MVP")
+	}
+	for _, m := range []ModuleName{ModuleCRUD, ModuleStorage, ModuleNotification, ModulePayment} {
+		if m.Enabled() {
+			t.Fatalf("expected module %s to be disabled in MVP", m)
+		}
+	}
+}
+
 func TestValidFunction_Auth(t *testing.T) {
 	for _, fn := range []string{"signup", "signin", "forgotPassword", "oauth"} {
 		if !ValidFunction(ModuleAuth, fn) {

@@ -28,6 +28,27 @@ func TestNewField_SystemNames(t *testing.T) {
 	}
 }
 
+func TestNewField_ReservedNameWrongType(t *testing.T) {
+	_, err := NewField("entity123", "email", FieldTypeString)
+	if err == nil {
+		t.Fatal("expected error when field named email uses a non-email type")
+	}
+	domainErr, ok := err.(*Error)
+	if !ok || domainErr.Code != CodeInvalidInput {
+		t.Fatalf("expected CodeInvalidInput, got %v", err)
+	}
+}
+
+func TestNewField_ReservedNameCorrectType(t *testing.T) {
+	f, err := NewField("entity123", "email", FieldTypeEmail)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !f.IsSystem {
+		t.Fatal("expected email field to be system field")
+	}
+}
+
 func TestNewField_InvalidType(t *testing.T) {
 	_, err := NewField("entity123", "title", FieldType("unknown"))
 	if err == nil {

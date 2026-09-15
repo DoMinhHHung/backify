@@ -43,6 +43,10 @@ func (uc *ConfigModule) ToggleField(ctx context.Context, input ToggleFieldInput)
 		return domain.ErrInvalidModuleName
 	}
 
+	if !input.Module.Enabled() {
+		return domain.ErrModuleNotEnabled
+	}
+
 	if !domain.ValidFunction(input.Module, input.Function) {
 		return domain.ErrFunctionNotFound
 	}
