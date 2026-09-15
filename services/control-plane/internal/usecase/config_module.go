@@ -31,10 +31,13 @@ type ConfigModule struct {
 	publisher port.EventPublisher
 }
 
+// NewConfigModule tạo use case cấu hình module từ các dependency cần thiết.
 func NewConfigModule(projects port.ProjectRepository, entities port.EntityRepository, fields port.FieldRepository, modules port.ModuleRepository, publisher port.EventPublisher) *ConfigModule {
 	return &ConfigModule{projects: projects, entities: entities, fields: fields, modules: modules, publisher: publisher}
 }
 
+// ToggleField bật hoặc tắt field thuộc cùng project cho một hàm hợp lệ của module đang hỗ trợ.
+// Module và hàm được tạo khi cần; cấu hình thành công sẽ phát sự kiện project.config.updated.
 func (uc *ConfigModule) ToggleField(ctx context.Context, input ToggleFieldInput) error {
 	if _, err := uc.projects.GetByID(ctx, input.ProjectID); err != nil {
 		return err
@@ -101,6 +104,7 @@ func (uc *ConfigModule) ToggleField(ctx context.Context, input ToggleFieldInput)
 	})
 }
 
+// ListModules trả về các module đã cấu hình sau khi xác nhận project tồn tại.
 func (uc *ConfigModule) ListModules(ctx context.Context, projectID string) ([]*domain.Module, error) {
 	if _, err := uc.projects.GetByID(ctx, projectID); err != nil {
 		return nil, err

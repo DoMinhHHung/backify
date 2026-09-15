@@ -39,6 +39,7 @@ func toProjectResponse(p *domain.Project) projectResponse {
 	}
 }
 
+// CreateProjectHandler tạo project từ nội dung JSON của yêu cầu.
 func (h *Handler) CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	var req createProjectRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -58,6 +59,7 @@ func (h *Handler) CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	writeData(w, http.StatusCreated, toProjectResponse(project))
 }
 
+// ListProjectsHandler trả về danh sách project.
 func (h *Handler) ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 	projects, err := h.GetProject.List(r.Context())
 	if err != nil {
@@ -73,6 +75,7 @@ func (h *Handler) ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 	writeData(w, http.StatusOK, responses)
 }
 
+// GetProjectHandler trả về project theo mã định danh trên URL.
 func (h *Handler) GetProjectHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
@@ -85,6 +88,7 @@ func (h *Handler) GetProjectHandler(w http.ResponseWriter, r *http.Request) {
 	writeData(w, http.StatusOK, toProjectResponse(project))
 }
 
+// DeleteProjectHandler xóa mềm project theo mã định danh trên URL.
 func (h *Handler) DeleteProjectHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 

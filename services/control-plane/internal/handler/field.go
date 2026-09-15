@@ -35,6 +35,7 @@ func toFieldResponse(f *domain.Field) fieldResponse {
 	}
 }
 
+// AddFieldHandler tạo field trong entity từ nội dung JSON của yêu cầu.
 func (h *Handler) AddFieldHandler(w http.ResponseWriter, r *http.Request) {
 	entityID := chi.URLParam(r, "eid")
 
@@ -57,6 +58,7 @@ func (h *Handler) AddFieldHandler(w http.ResponseWriter, r *http.Request) {
 	writeData(w, http.StatusCreated, toFieldResponse(field))
 }
 
+// ListFieldsHandler trả về danh sách field của entity.
 func (h *Handler) ListFieldsHandler(w http.ResponseWriter, r *http.Request) {
 	entityID := chi.URLParam(r, "eid")
 
@@ -74,6 +76,7 @@ func (h *Handler) ListFieldsHandler(w http.ResponseWriter, r *http.Request) {
 	writeData(w, http.StatusOK, responses)
 }
 
+// DeleteFieldHandler xóa field; query force=true cho phép xóa field đang được sử dụng.
 func (h *Handler) DeleteFieldHandler(w http.ResponseWriter, r *http.Request) {
 	fieldID := chi.URLParam(r, "fid")
 	force := r.URL.Query().Get("force") == "true"

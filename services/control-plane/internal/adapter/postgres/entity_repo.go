@@ -15,10 +15,12 @@ type EntityRepo struct {
 	pool *pgxpool.Pool
 }
 
+// NewEntityRepo tạo kho lưu trữ entity dùng pool PostgreSQL đã cho.
 func NewEntityRepo(pool *pgxpool.Pool) *EntityRepo {
 	return &EntityRepo{pool: pool}
 }
 
+// Create lưu entity và trả về ErrEntityNameTaken khi tên đã tồn tại trong project.
 func (r *EntityRepo) Create(ctx context.Context, entity *domain.Entity) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO entities (id, project_id, name, is_system, created_at, updated_at)
@@ -34,6 +36,7 @@ func (r *EntityRepo) Create(ctx context.Context, entity *domain.Entity) error {
 	return nil
 }
 
+// GetByID lấy entity theo mã định danh và trả về ErrEntityNotFound nếu không tồn tại.
 func (r *EntityRepo) GetByID(ctx context.Context, id string) (*domain.Entity, error) {
 	row := r.pool.QueryRow(ctx, `
 		SELECT id, project_id, name, is_system, created_at, updated_at
@@ -42,6 +45,7 @@ func (r *EntityRepo) GetByID(ctx context.Context, id string) (*domain.Entity, er
 	return scanEntity(row)
 }
 
+// GetByProjectAndName lấy entity theo project và tên.
 func (r *EntityRepo) GetByProjectAndName(ctx context.Context, projectID, name string) (*domain.Entity, error) {
 	row := r.pool.QueryRow(ctx, `
 		SELECT id, project_id, name, is_system, created_at, updated_at
@@ -50,6 +54,7 @@ func (r *EntityRepo) GetByProjectAndName(ctx context.Context, projectID, name st
 	return scanEntity(row)
 }
 
+// ListByProject liệt kê entity của project theo thứ tự tạo tăng dần.
 func (r *EntityRepo) ListByProject(ctx context.Context, projectID string) ([]*domain.Entity, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, project_id, name, is_system, created_at, updated_at

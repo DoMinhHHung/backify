@@ -12,6 +12,7 @@ const (
 	ModulePayment      ModuleName = "payment"
 )
 
+// Valid cho biết tên module có thuộc tập tên được nhận diện hay không.
 func (m ModuleName) Valid() bool {
 	switch m {
 	case ModuleAuth, ModuleCRUD, ModuleStorage, ModuleNotification, ModulePayment:
@@ -21,6 +22,7 @@ func (m ModuleName) Valid() bool {
 	}
 }
 
+// Enabled cho biết module có được bật trong phiên bản MVP hay không.
 func (m ModuleName) Enabled() bool {
 	return m == ModuleAuth
 }
@@ -31,6 +33,7 @@ var moduleFunctions = map[ModuleName][]string{
 	ModuleAuth: authFunctions,
 }
 
+// FunctionsForModule trả về bản sao danh sách hàm của module, hoặc nil nếu chưa định nghĩa.
 func FunctionsForModule(name ModuleName) []string {
 	fns, ok := moduleFunctions[name]
 	if !ok {
@@ -41,6 +44,7 @@ func FunctionsForModule(name ModuleName) []string {
 	return result
 }
 
+// ValidFunction cho biết tên hàm có được định nghĩa cho module hay không.
 func ValidFunction(name ModuleName, function string) bool {
 	for _, fn := range FunctionsForModule(name) {
 		if fn == function {
@@ -57,6 +61,7 @@ type Module struct {
 	CreatedAt time.Time
 }
 
+// NewModule tạo module mới với mã định danh và thời điểm theo UTC sau khi kiểm tra đầu vào.
 func NewModule(projectID string, name ModuleName) (*Module, error) {
 	if projectID == "" {
 		return nil, ErrInvalidInput.WithDetails(map[string]interface{}{

@@ -34,6 +34,7 @@ func toEntityResponse(e *domain.Entity) entityResponse {
 	}
 }
 
+// AddEntityHandler tạo entity trong project từ nội dung JSON của yêu cầu.
 func (h *Handler) AddEntityHandler(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "id")
 
@@ -55,6 +56,7 @@ func (h *Handler) AddEntityHandler(w http.ResponseWriter, r *http.Request) {
 	writeData(w, http.StatusCreated, toEntityResponse(entity))
 }
 
+// ListEntitiesHandler trả về danh sách entity của project.
 func (h *Handler) ListEntitiesHandler(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "id")
 

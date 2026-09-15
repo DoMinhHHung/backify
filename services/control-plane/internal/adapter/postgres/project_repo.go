@@ -19,10 +19,12 @@ type ProjectRepo struct {
 	pool *pgxpool.Pool
 }
 
+// NewProjectRepo tạo kho lưu trữ project dùng pool PostgreSQL đã cho.
 func NewProjectRepo(pool *pgxpool.Pool) *ProjectRepo {
 	return &ProjectRepo{pool: pool}
 }
 
+// Create lưu project và trả về ErrSubdomainTaken khi subdomain đã tồn tại.
 func (r *ProjectRepo) Create(ctx context.Context, project *domain.Project) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO projects (id, name, subdomain, schema_name, plan, status, created_at, updated_at)
@@ -38,6 +40,7 @@ func (r *ProjectRepo) Create(ctx context.Context, project *domain.Project) error
 	return nil
 }
 
+// GetByID lấy project theo mã định danh và trả về ErrProjectNotFound nếu không tồn tại.
 func (r *ProjectRepo) GetByID(ctx context.Context, id string) (*domain.Project, error) {
 	row := r.pool.QueryRow(ctx, `
 		SELECT id, name, subdomain, schema_name, plan, status, created_at, updated_at
@@ -46,6 +49,7 @@ func (r *ProjectRepo) GetByID(ctx context.Context, id string) (*domain.Project, 
 	return scanProject(row)
 }
 
+// GetBySubdomain lấy project theo subdomain.
 func (r *ProjectRepo) GetBySubdomain(ctx context.Context, subdomain string) (*domain.Project, error) {
 	row := r.pool.QueryRow(ctx, `
 		SELECT id, name, subdomain, schema_name, plan, status, created_at, updated_at
@@ -54,6 +58,7 @@ func (r *ProjectRepo) GetBySubdomain(ctx context.Context, subdomain string) (*do
 	return scanProject(row)
 }
 
+// List liệt kê project theo thứ tự tạo giảm dần.
 func (r *ProjectRepo) List(ctx context.Context) ([]*domain.Project, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, name, subdomain, schema_name, plan, status, created_at, updated_at
@@ -75,6 +80,7 @@ func (r *ProjectRepo) List(ctx context.Context) ([]*domain.Project, error) {
 	return projects, rows.Err()
 }
 
+// Update cập nhật tên, gói và trạng thái của project hiện có.
 func (r *ProjectRepo) Update(ctx context.Context, project *domain.Project) error {
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE projects SET name = $2, plan = $3, status = $4, updated_at = $5

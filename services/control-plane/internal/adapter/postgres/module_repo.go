@@ -17,10 +17,12 @@ type ModuleRepo struct {
 	pool *pgxpool.Pool
 }
 
+// NewModuleRepo tạo kho lưu trữ cấu hình module dùng pool PostgreSQL đã cho.
 func NewModuleRepo(pool *pgxpool.Pool) *ModuleRepo {
 	return &ModuleRepo{pool: pool}
 }
 
+// newRowID tạo mã hex 16 ký tự cho các bản ghi cấu hình từ nguồn ngẫu nhiên mật mã.
 func newRowID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
@@ -29,6 +31,8 @@ func newRowID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// Create bảo đảm module tồn tại duy nhất theo project và tên.
+// Hàm cập nhật ID và CreatedAt của đối số bằng giá trị đã lưu, kể cả khi bản ghi đã tồn tại.
 func (r *ModuleRepo) Create(ctx context.Context, module *domain.Module) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO modules (id, project_id, name, created_at)
@@ -48,6 +52,7 @@ func (r *ModuleRepo) Create(ctx context.Context, module *domain.Module) error {
 	return nil
 }
 
+// GetByProjectAndName lấy module theo project và tên, hoặc trả về ErrModuleNotFound.
 func (r *ModuleRepo) GetByProjectAndName(ctx context.Context, projectID string, name domain.ModuleName) (*domain.Module, error) {
 	row := r.pool.QueryRow(ctx, `
 		SELECT id, project_id, name, created_at
@@ -67,6 +72,7 @@ func (r *ModuleRepo) GetByProjectAndName(ctx context.Context, projectID string, 
 	return &m, nil
 }
 
+// ListByProject liệt kê module của project theo thứ tự tạo tăng dần.
 func (r *ModuleRepo) ListByProject(ctx context.Context, projectID string) ([]*domain.Module, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, project_id, name, created_at
@@ -90,6 +96,7 @@ func (r *ModuleRepo) ListByProject(ctx context.Context, projectID string) ([]*do
 	return modules, rows.Err()
 }
 
+// EnsureFunction tạo hàm của module nếu cần và trả về mã của bản ghi đã lưu.
 func (r *ModuleRepo) EnsureFunction(ctx context.Context, moduleID, functionName string) (string, error) {
 	id, err := newRowID()
 	if err != nil {
@@ -116,6 +123,7 @@ func (r *ModuleRepo) EnsureFunction(ctx context.Context, moduleID, functionName 
 	return functionID, nil
 }
 
+// ToggleFunctionField tạo hoặc cập nhật trạng thái liên kết giữa hàm và field.
 func (r *ModuleRepo) ToggleFunctionField(ctx context.Context, functionID, fieldID string, enabled bool) error {
 	id, err := newRowID()
 	if err != nil {
@@ -130,6 +138,7 @@ func (r *ModuleRepo) ToggleFunctionField(ctx context.Context, functionID, fieldI
 	return err
 }
 
+// ListFieldUsages liệt kê các hàm đang bật field đã cho.
 func (r *ModuleRepo) ListFieldUsages(ctx context.Context, fieldID string) ([]port.FieldUsage, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT m.name, f.name
@@ -154,6 +163,7 @@ func (r *ModuleRepo) ListFieldUsages(ctx context.Context, fieldID string) ([]por
 	return usages, rows.Err()
 }
 
+// DisableFieldEverywhere tắt mọi liên kết cấu hình đang tham chiếu field.
 func (r *ModuleRepo) DisableFieldEverywhere(ctx context.Context, fieldID string) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE function_fields SET enabled = false, updated_at = now()
@@ -162,6 +172,7 @@ func (r *ModuleRepo) DisableFieldEverywhere(ctx context.Context, fieldID string)
 	return err
 }
 
+// DisableAndDeleteField tắt mọi liên kết rồi xóa field trong cùng một transaction.
 func (r *ModuleRepo) DisableAndDeleteField(ctx context.Context, fieldID string) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {

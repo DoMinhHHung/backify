@@ -24,10 +24,13 @@ type CreateProject struct {
 	publisher port.EventPublisher
 }
 
+// NewCreateProject tạo use case tạo project từ kho lưu trữ và bộ phát sự kiện.
 func NewCreateProject(projects port.ProjectRepository, publisher port.EventPublisher) *CreateProject {
 	return &CreateProject{projects: projects, publisher: publisher}
 }
 
+// Execute tạo và lưu project, sau đó phát sự kiện project.created.
+// Project đã lưu không được hoàn tác nếu bộ phát sự kiện trả về lỗi.
 func (uc *CreateProject) Execute(ctx context.Context, input CreateProjectInput) (*domain.Project, error) {
 	project, err := domain.NewProject(input.Name, input.Subdomain)
 	if err != nil {

@@ -16,6 +16,7 @@ type Publisher struct {
 	channel *amqp.Channel
 }
 
+// NewPublisher mở channel và khai báo durable topic exchange dùng để phát sự kiện nền tảng.
 func NewPublisher(conn *amqp.Connection) (*Publisher, error) {
 	channel, err := conn.Channel()
 	if err != nil {
@@ -37,6 +38,8 @@ func NewPublisher(conn *amqp.Connection) (*Publisher, error) {
 	return &Publisher{channel: channel}, nil
 }
 
+// Publish gửi payload JSON với tên sự kiện làm routing key.
+// Lỗi tuần tự hóa hoặc gửi được ghi log và bỏ qua để việc phát sự kiện là best effort.
 func (p *Publisher) Publish(ctx context.Context, event port.Event) error {
 	body, err := json.Marshal(event.Payload)
 	if err != nil {
@@ -55,6 +58,7 @@ func (p *Publisher) Publish(ctx context.Context, event port.Event) error {
 	return nil
 }
 
+// Close đóng channel AMQP của publisher.
 func (p *Publisher) Close() error {
 	return p.channel.Close()
 }

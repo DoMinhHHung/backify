@@ -17,6 +17,7 @@ const (
 	PlanTwoCore  Plan = "2c-4g"
 )
 
+// Valid cho biết gói tài nguyên có được hỗ trợ hay không.
 func (p Plan) Valid() bool {
 	switch p {
 	case PlanFree, PlanHalfCore, PlanOneCore, PlanTwoCore:
@@ -34,6 +35,7 @@ const (
 	ProjectStatusDeleted   ProjectStatus = "deleted"
 )
 
+// Valid cho biết trạng thái project có được hỗ trợ hay không.
 func (s ProjectStatus) Valid() bool {
 	switch s {
 	case ProjectStatusActive, ProjectStatusSuspended, ProjectStatusDeleted:
@@ -56,6 +58,7 @@ type Project struct {
 	UpdatedAt  time.Time
 }
 
+// generateID tạo mã hex 16 ký tự từ nguồn ngẫu nhiên mật mã.
 func generateID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
@@ -74,6 +77,8 @@ func validateSubdomain(subdomain string) error {
 	return nil
 }
 
+// NewProject tạo project active ở gói miễn phí sau khi chuẩn hóa tên và kiểm tra subdomain.
+// Schema riêng được đặt theo mã định danh ngẫu nhiên của project.
 func NewProject(name, subdomain string) (*Project, error) {
 	trimmedName := strings.TrimSpace(name)
 	if trimmedName == "" {
@@ -105,6 +110,7 @@ func NewProject(name, subdomain string) (*Project, error) {
 	}, nil
 }
 
+// ChangePlan đổi gói tài nguyên và cập nhật thời điểm sửa đổi nếu gói hợp lệ.
 func (p *Project) ChangePlan(plan Plan) error {
 	if !plan.Valid() {
 		return ErrInvalidInput.WithDetails(map[string]interface{}{
@@ -117,16 +123,19 @@ func (p *Project) ChangePlan(plan Plan) error {
 	return nil
 }
 
+// Suspend chuyển project sang trạng thái tạm ngưng và cập nhật thời điểm sửa đổi.
 func (p *Project) Suspend() {
 	p.Status = ProjectStatusSuspended
 	p.UpdatedAt = time.Now().UTC()
 }
 
+// Activate chuyển project sang trạng thái hoạt động và cập nhật thời điểm sửa đổi.
 func (p *Project) Activate() {
 	p.Status = ProjectStatusActive
 	p.UpdatedAt = time.Now().UTC()
 }
 
+// MarkDeleted đánh dấu project đã bị xóa mềm và cập nhật thời điểm sửa đổi.
 func (p *Project) MarkDeleted() {
 	p.Status = ProjectStatusDeleted
 	p.UpdatedAt = time.Now().UTC()

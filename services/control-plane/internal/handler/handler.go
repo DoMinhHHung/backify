@@ -20,6 +20,7 @@ type Handler struct {
 	ConfigModule  *usecase.ConfigModule
 }
 
+// New tạo bộ HTTP handler từ các use case của control plane.
 func New(
 	createProject *usecase.CreateProject,
 	getProject *usecase.GetProject,
@@ -38,6 +39,7 @@ func New(
 	}
 }
 
+// RegisterRoutes đăng ký các endpoint API v1 lên router.
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/projects", h.CreateProjectHandler)
@@ -85,6 +87,8 @@ func writeError(w http.ResponseWriter, err error) {
 	}
 }
 
+// mapError chuyển lỗi domain sang mã trạng thái và nội dung lỗi HTTP công khai.
+// Các lỗi không thuộc domain được che thành lỗi máy chủ chung.
 func mapError(err error) (int, *errorBody) {
 	domainErr, ok := err.(*domain.Error)
 	if !ok {
@@ -116,6 +120,7 @@ func mapError(err error) (int, *errorBody) {
 	}
 }
 
+// decodeJSON giải mã một giá trị JSON, từ chối field không xác định và đóng request body.
 func decodeJSON(r *http.Request, dst interface{}) error {
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)

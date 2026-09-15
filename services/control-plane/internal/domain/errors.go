@@ -28,14 +28,17 @@ type Error struct {
 	Details map[string]interface{}
 }
 
+// Error trả về chuỗi gồm mã lỗi và thông báo của lỗi domain.
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s: %s", e.Code, e.Message)
 }
 
+// NewError tạo lỗi domain với mã và thông báo đã cho.
 func NewError(code ErrorCode, message string) *Error {
 	return &Error{Code: code, Message: message}
 }
 
+// WithDetails tạo bản sao của lỗi kèm dữ liệu chi tiết mà không thay đổi lỗi gốc.
 func (e *Error) WithDetails(details map[string]interface{}) *Error {
 	return &Error{Code: e.Code, Message: e.Message, Details: details}
 }
@@ -57,6 +60,7 @@ var (
 	ErrFunctionNotFound         = NewError(CodeFunctionNotFound, "function not found")
 )
 
+// NewFieldInUseError tạo lỗi cho biết field đang được các hàm trong module sử dụng.
 func NewFieldInUseError(usages []string) *Error {
 	return &Error{
 		Code:    CodeFieldInUse,

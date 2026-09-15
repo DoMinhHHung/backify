@@ -31,6 +31,7 @@ func toModuleResponse(m *domain.Module) moduleResponse {
 	}
 }
 
+// ToggleFieldHandler bật hoặc tắt một field cho hàm của module.
 func (h *Handler) ToggleFieldHandler(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "id")
 	moduleName := chi.URLParam(r, "name")
@@ -57,6 +58,7 @@ func (h *Handler) ToggleFieldHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ListModulesHandler trả về các module đã được cấu hình cho project.
 func (h *Handler) ListModulesHandler(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "id")
 

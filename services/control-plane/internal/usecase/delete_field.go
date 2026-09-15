@@ -24,10 +24,13 @@ type DeleteField struct {
 	publisher port.EventPublisher
 }
 
+// NewDeleteField tạo use case xóa field từ các dependency cần thiết.
 func NewDeleteField(fields port.FieldRepository, modules port.ModuleRepository, publisher port.EventPublisher) *DeleteField {
 	return &DeleteField{fields: fields, modules: modules, publisher: publisher}
 }
 
+// Execute xóa field không thuộc hệ thống và phát sự kiện field.deleted khi thành công.
+// Field đang được sử dụng cần Force; khi đó việc tắt liên kết và xóa diễn ra trong một transaction.
 func (uc *DeleteField) Execute(ctx context.Context, input DeleteFieldInput) error {
 	field, err := uc.fields.GetByID(ctx, input.FieldID)
 	if err != nil {

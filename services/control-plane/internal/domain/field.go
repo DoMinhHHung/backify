@@ -21,6 +21,7 @@ const (
 	FieldTypeUUID    FieldType = "uuid"
 )
 
+// Valid cho biết kiểu field có thuộc tập kiểu được hỗ trợ hay không.
 func (t FieldType) Valid() bool {
 	switch t {
 	case FieldTypeString, FieldTypeText, FieldTypeEmail, FieldTypePhone,
@@ -63,6 +64,8 @@ func validateFieldName(name string) error {
 	return nil
 }
 
+// NewField tạo field mới sau khi kiểm tra tên, kiểu và quy tắc dành riêng cho tên "email".
+// Các tên id, email và password được đánh dấu là field hệ thống.
 func NewField(entityID, name string, fieldType FieldType) (*Field, error) {
 	if entityID == "" {
 		return nil, ErrInvalidInput.WithDetails(map[string]interface{}{
@@ -104,6 +107,7 @@ func NewField(entityID, name string, fieldType FieldType) (*Field, error) {
 	}, nil
 }
 
+// CanDelete trả về lỗi nếu field là tài nguyên hệ thống không được phép xóa.
 func (f *Field) CanDelete() error {
 	if f.IsSystem {
 		return ErrSystemFieldCannotDelete

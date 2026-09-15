@@ -28,6 +28,8 @@ type App struct {
 	publisher  *rabbitmq.Publisher
 }
 
+// New tạo pool PostgreSQL, kết nối RabbitMQ, khởi tạo các dependency rồi dựng router ứng dụng.
+// Tài nguyên đã mở được đóng trước khi trả về nếu quá trình khởi tạo thất bại.
 func New(ctx context.Context, cfg Config) (*App, error) {
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -73,6 +75,8 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	}, nil
 }
 
+// Close đóng publisher, kết nối RabbitMQ và pool PostgreSQL của ứng dụng.
+// Mọi lỗi khi đóng tài nguyên đều bị bỏ qua.
 func (a *App) Close() {
 	_ = a.publisher.Close()
 	_ = a.RabbitConn.Close()
@@ -84,6 +88,7 @@ type healthResponse struct {
 	DB     string `json:"db"`
 }
 
+// healthHandler tạo endpoint phản ánh khả năng kết nối PostgreSQL trong thời hạn ba giây.
 func healthHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		dbStatus := "ok"

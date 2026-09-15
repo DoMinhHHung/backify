@@ -15,10 +15,12 @@ type FieldRepo struct {
 	pool *pgxpool.Pool
 }
 
+// NewFieldRepo tạo kho lưu trữ field dùng pool PostgreSQL đã cho.
 func NewFieldRepo(pool *pgxpool.Pool) *FieldRepo {
 	return &FieldRepo{pool: pool}
 }
 
+// Create lưu field và trả về ErrFieldNameTaken khi tên đã tồn tại trong entity.
 func (r *FieldRepo) Create(ctx context.Context, field *domain.Field) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO fields (id, entity_id, name, type, is_system, created_at)
@@ -34,6 +36,7 @@ func (r *FieldRepo) Create(ctx context.Context, field *domain.Field) error {
 	return nil
 }
 
+// GetByID lấy field theo mã định danh và trả về ErrFieldNotFound nếu không tồn tại.
 func (r *FieldRepo) GetByID(ctx context.Context, id string) (*domain.Field, error) {
 	row := r.pool.QueryRow(ctx, `
 		SELECT id, entity_id, name, type, is_system, created_at
@@ -42,6 +45,7 @@ func (r *FieldRepo) GetByID(ctx context.Context, id string) (*domain.Field, erro
 	return scanField(row)
 }
 
+// GetByEntityAndName lấy field theo entity và tên.
 func (r *FieldRepo) GetByEntityAndName(ctx context.Context, entityID, name string) (*domain.Field, error) {
 	row := r.pool.QueryRow(ctx, `
 		SELECT id, entity_id, name, type, is_system, created_at
@@ -50,6 +54,7 @@ func (r *FieldRepo) GetByEntityAndName(ctx context.Context, entityID, name strin
 	return scanField(row)
 }
 
+// ListByEntity liệt kê field của entity theo thứ tự tạo tăng dần.
 func (r *FieldRepo) ListByEntity(ctx context.Context, entityID string) ([]*domain.Field, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, entity_id, name, type, is_system, created_at
@@ -71,6 +76,7 @@ func (r *FieldRepo) ListByEntity(ctx context.Context, entityID string) ([]*domai
 	return fields, rows.Err()
 }
 
+// Delete xóa field theo mã định danh và trả về ErrFieldNotFound nếu không tồn tại.
 func (r *FieldRepo) Delete(ctx context.Context, id string) error {
 	tag, err := r.pool.Exec(ctx, `DELETE FROM fields WHERE id = $1`, id)
 	if err != nil {
