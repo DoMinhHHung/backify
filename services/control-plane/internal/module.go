@@ -28,6 +28,8 @@ type App struct {
 	publisher  *rabbitmq.Publisher
 }
 
+// New khởi tạo pool PostgreSQL, kết nối RabbitMQ, publisher và router HTTP của ứng dụng.
+// Các tài nguyên đã mở được đóng trước khi trả về nếu bước khởi tạo sau đó thất bại.
 func New(ctx context.Context, cfg Config) (*App, error) {
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -73,6 +75,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	}, nil
 }
 
+// Close đóng publisher, kết nối RabbitMQ và pool PostgreSQL; lỗi đóng publisher hoặc RabbitMQ bị bỏ qua.
 func (a *App) Close() {
 	_ = a.publisher.Close()
 	_ = a.RabbitConn.Close()
@@ -84,6 +87,7 @@ type healthResponse struct {
 	DB     string `json:"db"`
 }
 
+// healthHandler báo trạng thái degraded với HTTP 503 khi kiểm tra PostgreSQL lỗi hoặc quá thời hạn ba giây.
 func healthHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		dbStatus := "ok"

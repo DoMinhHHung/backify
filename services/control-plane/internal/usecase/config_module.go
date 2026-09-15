@@ -35,6 +35,8 @@ func NewConfigModule(projects port.ProjectRepository, entities port.EntityReposi
 	return &ConfigModule{projects: projects, entities: entities, fields: fields, modules: modules, publisher: publisher}
 }
 
+// ToggleField bật hoặc tắt một field thuộc project cho function được hỗ trợ của module auth.
+// Module và function được tạo khi cần; cấu hình đã lưu không được hoàn tác nếu phát sự kiện thất bại.
 func (uc *ConfigModule) ToggleField(ctx context.Context, input ToggleFieldInput) error {
 	if _, err := uc.projects.GetByID(ctx, input.ProjectID); err != nil {
 		return err
@@ -101,6 +103,7 @@ func (uc *ConfigModule) ToggleField(ctx context.Context, input ToggleFieldInput)
 	})
 }
 
+// ListModules trả về các module đã cấu hình sau khi xác nhận project tồn tại.
 func (uc *ConfigModule) ListModules(ctx context.Context, projectID string) ([]*domain.Module, error) {
 	if _, err := uc.projects.GetByID(ctx, projectID); err != nil {
 		return nil, err

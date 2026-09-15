@@ -85,6 +85,7 @@ func writeError(w http.ResponseWriter, err error) {
 	}
 }
 
+// mapError chuyển lỗi domain thành mã HTTP và nội dung lỗi công khai; lỗi khác được ẩn dưới INTERNAL_ERROR.
 func mapError(err error) (int, *errorBody) {
 	domainErr, ok := err.(*domain.Error)
 	if !ok {
@@ -116,6 +117,7 @@ func mapError(err error) (int, *errorBody) {
 	}
 }
 
+// decodeJSON giải mã body và từ chối các trường JSON không có trong kiểu đích; body luôn được đóng sau khi đọc.
 func decodeJSON(r *http.Request, dst interface{}) error {
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)

@@ -74,6 +74,8 @@ func validateSubdomain(subdomain string) error {
 	return nil
 }
 
+// NewProject tạo project đang hoạt động trên gói miễn phí, bỏ khoảng trắng đầu cuối ở tên và tạo tên schema riêng.
+// Hàm trả về lỗi nếu tên trống, subdomain sai định dạng hoặc không thể sinh mã định danh ngẫu nhiên.
 func NewProject(name, subdomain string) (*Project, error) {
 	trimmedName := strings.TrimSpace(name)
 	if trimmedName == "" {
@@ -105,6 +107,7 @@ func NewProject(name, subdomain string) (*Project, error) {
 	}, nil
 }
 
+// ChangePlan cập nhật gói và thời điểm sửa đổi; gói không hợp lệ trả về CodeInvalidInput và không thay đổi project.
 func (p *Project) ChangePlan(plan Plan) error {
 	if !plan.Valid() {
 		return ErrInvalidInput.WithDetails(map[string]interface{}{
@@ -117,16 +120,19 @@ func (p *Project) ChangePlan(plan Plan) error {
 	return nil
 }
 
+// Suspend chuyển project sang trạng thái tạm ngưng và cập nhật thời điểm sửa đổi.
 func (p *Project) Suspend() {
 	p.Status = ProjectStatusSuspended
 	p.UpdatedAt = time.Now().UTC()
 }
 
+// Activate chuyển project sang trạng thái hoạt động và cập nhật thời điểm sửa đổi.
 func (p *Project) Activate() {
 	p.Status = ProjectStatusActive
 	p.UpdatedAt = time.Now().UTC()
 }
 
+// MarkDeleted đánh dấu project đã xóa mà không xóa dữ liệu, đồng thời cập nhật thời điểm sửa đổi.
 func (p *Project) MarkDeleted() {
 	p.Status = ProjectStatusDeleted
 	p.UpdatedAt = time.Now().UTC()

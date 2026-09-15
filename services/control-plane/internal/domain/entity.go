@@ -28,6 +28,7 @@ func validateEntityName(name string) error {
 	return nil
 }
 
+// NewEntity tạo entity với mã định danh và thời gian UTC mới. Entity có tên "user" được đánh dấu là entity hệ thống.
 func NewEntity(projectID, name string) (*Entity, error) {
 	if projectID == "" {
 		return nil, ErrInvalidInput.WithDetails(map[string]interface{}{
@@ -57,6 +58,7 @@ func NewEntity(projectID, name string) (*Entity, error) {
 	}, nil
 }
 
+// CanDelete trả về ErrSystemEntityCannotDelete nếu entity là entity hệ thống.
 func (e *Entity) CanDelete() error {
 	if e.IsSystem {
 		return ErrSystemEntityCannotDelete

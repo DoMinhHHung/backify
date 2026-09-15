@@ -29,6 +29,8 @@ func newRowID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// Create bảo đảm mỗi project chỉ có một module cùng tên. Nếu bản ghi đã tồn tại, module đầu vào
+// được cập nhật bằng ID và thời điểm tạo đã lưu.
 func (r *ModuleRepo) Create(ctx context.Context, module *domain.Module) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO modules (id, project_id, name, created_at)
@@ -90,6 +92,7 @@ func (r *ModuleRepo) ListByProject(ctx context.Context, projectID string) ([]*do
 	return modules, rows.Err()
 }
 
+// EnsureFunction tạo function nếu chưa tồn tại và luôn trả về ID của bản ghi đã lưu.
 func (r *ModuleRepo) EnsureFunction(ctx context.Context, moduleID, functionName string) (string, error) {
 	id, err := newRowID()
 	if err != nil {
@@ -116,6 +119,7 @@ func (r *ModuleRepo) EnsureFunction(ctx context.Context, moduleID, functionName 
 	return functionID, nil
 }
 
+// ToggleFunctionField tạo hoặc cập nhật liên kết field của function với trạng thái enabled được yêu cầu.
 func (r *ModuleRepo) ToggleFunctionField(ctx context.Context, functionID, fieldID string, enabled bool) error {
 	id, err := newRowID()
 	if err != nil {
@@ -130,6 +134,7 @@ func (r *ModuleRepo) ToggleFunctionField(ctx context.Context, functionID, fieldI
 	return err
 }
 
+// ListFieldUsages trả về các function đang bật field; các liên kết đã tắt không được tính là đang sử dụng.
 func (r *ModuleRepo) ListFieldUsages(ctx context.Context, fieldID string) ([]port.FieldUsage, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT m.name, f.name
@@ -154,6 +159,7 @@ func (r *ModuleRepo) ListFieldUsages(ctx context.Context, fieldID string) ([]por
 	return usages, rows.Err()
 }
 
+// DisableFieldEverywhere tắt field trong mọi function nhưng không xóa field.
 func (r *ModuleRepo) DisableFieldEverywhere(ctx context.Context, fieldID string) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE function_fields SET enabled = false, updated_at = now()
@@ -162,6 +168,8 @@ func (r *ModuleRepo) DisableFieldEverywhere(ctx context.Context, fieldID string)
 	return err
 }
 
+// DisableAndDeleteField tắt mọi liên kết rồi xóa field trong cùng một transaction.
+// Hàm trả về ErrFieldNotFound nếu field không tồn tại.
 func (r *ModuleRepo) DisableAndDeleteField(ctx context.Context, fieldID string) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {

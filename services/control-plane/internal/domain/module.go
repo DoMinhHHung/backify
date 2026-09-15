@@ -21,6 +21,7 @@ func (m ModuleName) Valid() bool {
 	}
 }
 
+// Enabled cho biết module có được hỗ trợ trong MVP hay không; hiện chỉ module auth được bật.
 func (m ModuleName) Enabled() bool {
 	return m == ModuleAuth
 }
@@ -31,6 +32,7 @@ var moduleFunctions = map[ModuleName][]string{
 	ModuleAuth: authFunctions,
 }
 
+// FunctionsForModule trả về bản sao danh sách function được hỗ trợ; module chưa được cấu hình trả về nil.
 func FunctionsForModule(name ModuleName) []string {
 	fns, ok := moduleFunctions[name]
 	if !ok {
@@ -57,6 +59,7 @@ type Module struct {
 	CreatedAt time.Time
 }
 
+// NewModule tạo module với mã định danh và thời gian UTC mới khi projectID không trống và tên module hợp lệ.
 func NewModule(projectID string, name ModuleName) (*Module, error) {
 	if projectID == "" {
 		return nil, ErrInvalidInput.WithDetails(map[string]interface{}{

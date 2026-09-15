@@ -63,6 +63,8 @@ func validateFieldName(name string) error {
 	return nil
 }
 
+// NewField tạo field mới sau khi kiểm tra entityID không trống, tên và kiểu. Các tên hệ thống được đánh dấu
+// không thể xóa; riêng tên "email" chỉ hợp lệ với FieldTypeEmail.
 func NewField(entityID, name string, fieldType FieldType) (*Field, error) {
 	if entityID == "" {
 		return nil, ErrInvalidInput.WithDetails(map[string]interface{}{
@@ -104,6 +106,7 @@ func NewField(entityID, name string, fieldType FieldType) (*Field, error) {
 	}, nil
 }
 
+// CanDelete trả về ErrSystemFieldCannotDelete nếu field là field hệ thống.
 func (f *Field) CanDelete() error {
 	if f.IsSystem {
 		return ErrSystemFieldCannotDelete

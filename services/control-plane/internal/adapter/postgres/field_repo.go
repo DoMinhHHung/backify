@@ -19,6 +19,7 @@ func NewFieldRepo(pool *pgxpool.Pool) *FieldRepo {
 	return &FieldRepo{pool: pool}
 }
 
+// Create lưu field và chuyển vi phạm ràng buộc duy nhất thành ErrFieldNameTaken.
 func (r *FieldRepo) Create(ctx context.Context, field *domain.Field) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO fields (id, entity_id, name, type, is_system, created_at)
@@ -50,6 +51,7 @@ func (r *FieldRepo) GetByEntityAndName(ctx context.Context, entityID, name strin
 	return scanField(row)
 }
 
+// ListByEntity trả về các field của entity theo thứ tự tạo tăng dần.
 func (r *FieldRepo) ListByEntity(ctx context.Context, entityID string) ([]*domain.Field, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, entity_id, name, type, is_system, created_at
@@ -71,6 +73,7 @@ func (r *FieldRepo) ListByEntity(ctx context.Context, entityID string) ([]*domai
 	return fields, rows.Err()
 }
 
+// Delete xóa field theo ID và trả về ErrFieldNotFound nếu không có bản ghi tương ứng.
 func (r *FieldRepo) Delete(ctx context.Context, id string) error {
 	tag, err := r.pool.Exec(ctx, `DELETE FROM fields WHERE id = $1`, id)
 	if err != nil {

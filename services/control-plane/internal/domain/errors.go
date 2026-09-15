@@ -36,6 +36,7 @@ func NewError(code ErrorCode, message string) *Error {
 	return &Error{Code: code, Message: message}
 }
 
+// WithDetails trả về một lỗi mới có cùng mã và thông báo, kèm theo details; lỗi gốc không bị thay đổi.
 func (e *Error) WithDetails(details map[string]interface{}) *Error {
 	return &Error{Code: e.Code, Message: e.Message, Details: details}
 }
@@ -57,6 +58,7 @@ var (
 	ErrFunctionNotFound         = NewError(CodeFunctionNotFound, "function not found")
 )
 
+// NewFieldInUseError tạo lỗi CodeFieldInUse và ghi các vị trí sử dụng field vào trường details.usages.
 func NewFieldInUseError(usages []string) *Error {
 	return &Error{
 		Code:    CodeFieldInUse,

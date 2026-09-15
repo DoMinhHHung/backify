@@ -23,6 +23,7 @@ func NewProjectRepo(pool *pgxpool.Pool) *ProjectRepo {
 	return &ProjectRepo{pool: pool}
 }
 
+// Create lưu project và chuyển vi phạm ràng buộc duy nhất thành ErrSubdomainTaken.
 func (r *ProjectRepo) Create(ctx context.Context, project *domain.Project) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO projects (id, name, subdomain, schema_name, plan, status, created_at, updated_at)
@@ -54,6 +55,7 @@ func (r *ProjectRepo) GetBySubdomain(ctx context.Context, subdomain string) (*do
 	return scanProject(row)
 }
 
+// List trả về các project theo thứ tự tạo mới nhất trước.
 func (r *ProjectRepo) List(ctx context.Context) ([]*domain.Project, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, name, subdomain, schema_name, plan, status, created_at, updated_at
@@ -75,6 +77,8 @@ func (r *ProjectRepo) List(ctx context.Context) ([]*domain.Project, error) {
 	return projects, rows.Err()
 }
 
+// Update chỉ lưu tên, gói, trạng thái và thời điểm sửa đổi của project.
+// Hàm trả về ErrProjectNotFound nếu project không tồn tại.
 func (r *ProjectRepo) Update(ctx context.Context, project *domain.Project) error {
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE projects SET name = $2, plan = $3, status = $4, updated_at = $5

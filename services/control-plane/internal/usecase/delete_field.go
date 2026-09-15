@@ -28,6 +28,9 @@ func NewDeleteField(fields port.FieldRepository, modules port.ModuleRepository, 
 	return &DeleteField{fields: fields, modules: modules, publisher: publisher}
 }
 
+// Execute xóa field tùy chỉnh và phát sự kiện field.deleted. Field hệ thống luôn bị từ chối;
+// field đang được dùng chỉ bị tắt ở mọi function rồi xóa khi Force là true.
+// Việc xóa đã hoàn tất không được hoàn tác nếu publisher trả về lỗi.
 func (uc *DeleteField) Execute(ctx context.Context, input DeleteFieldInput) error {
 	field, err := uc.fields.GetByID(ctx, input.FieldID)
 	if err != nil {

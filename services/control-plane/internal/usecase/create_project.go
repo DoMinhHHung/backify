@@ -28,6 +28,8 @@ func NewCreateProject(projects port.ProjectRepository, publisher port.EventPubli
 	return &CreateProject{projects: projects, publisher: publisher}
 }
 
+// Execute tạo và lưu project, sau đó phát sự kiện project.created.
+// Project đã lưu không được hoàn tác nếu publisher trả về lỗi.
 func (uc *CreateProject) Execute(ctx context.Context, input CreateProjectInput) (*domain.Project, error) {
 	project, err := domain.NewProject(input.Name, input.Subdomain)
 	if err != nil {

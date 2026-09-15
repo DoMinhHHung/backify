@@ -23,6 +23,7 @@ func (uc *GetProject) List(ctx context.Context) ([]*domain.Project, error) {
 	return uc.projects.List(ctx)
 }
 
+// Delete đánh dấu project đã xóa và lưu trạng thái mới mà không xóa bản ghi.
 func (uc *GetProject) Delete(ctx context.Context, id string) error {
 	project, err := uc.projects.GetByID(ctx, id)
 	if err != nil {
