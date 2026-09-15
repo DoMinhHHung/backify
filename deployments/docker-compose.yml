@@ -17,6 +17,29 @@ services:
       timeout: 5s
       retries: 10
 
+  # auth-postgres là Postgres instance riêng cho Auth Service, tách khỏi
+  # "postgres" (Control Plane, schema-per-project). Auth Service tạo động
+  # database auth_proj_<project_id> trên instance này (Bước 3) khi nhận
+  # event project.created — nên nó cần một instance riêng thay vì thêm
+  # database vào cụm schema-per-project của Control Plane.
+  auth-postgres:
+    image: postgres:16
+    container_name: backify-auth-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: backify
+      POSTGRES_PASSWORD: backify
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - backify-auth-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U backify -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   redis:
     image: redis:7
     container_name: backify-redis
@@ -66,4 +89,5 @@ services:
 
 volumes:
   backify-postgres-data:
+  backify-auth-postgres-data:
   backify-minio-data:
