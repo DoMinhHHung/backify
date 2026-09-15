@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	app "backify/services/control-plane/internal"
+	cpgrpc "backify/services/control-plane/internal/grpc"
 )
 
 func main() {
@@ -31,6 +32,11 @@ func main() {
 	rabbitmqURL := os.Getenv("RABBITMQ_URL")
 	if rabbitmqURL == "" {
 		rabbitmqURL = "amqp://backify:backify@localhost:5672/"
+	}
+
+	grpcAddr := os.Getenv("GRPC_ADDR")
+	if grpcAddr == "" {
+		grpcAddr = ":9091"
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -53,6 +59,13 @@ func main() {
 		log.Info().Str("port", port).Msg("control-plane starting")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal().Err(err).Msg("server failed")
+		}
+	}()
+
+	go func() {
+		grpcServer := cpgrpc.NewServer(application.GetProject)
+		if err := cpgrpc.ListenAndServe(grpcAddr, grpcServer); err != nil {
+			log.Fatal().Err(err).Msg("gRPC server failed")
 		}
 	}()
 

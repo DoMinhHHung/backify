@@ -26,10 +26,9 @@ type App struct {
 	Pool       *pgxpool.Pool
 	RabbitConn *amqp.Connection
 	publisher  *rabbitmq.Publisher
+	GetProject *usecase.GetProject
 }
 
-// New khởi tạo pool PostgreSQL, kết nối RabbitMQ, publisher và router HTTP của ứng dụng.
-// Các tài nguyên đã mở được đóng trước khi trả về nếu bước khởi tạo sau đó thất bại.
 func New(ctx context.Context, cfg Config) (*App, error) {
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -54,9 +53,11 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	fieldRepo := postgres.NewFieldRepo(pool)
 	moduleRepo := postgres.NewModuleRepo(pool)
 
+	getProject := usecase.NewGetProject(projectRepo)
+
 	h := handler.New(
 		usecase.NewCreateProject(projectRepo, publisher),
-		usecase.NewGetProject(projectRepo),
+		getProject,
 		usecase.NewAddEntity(projectRepo, entityRepo),
 		usecase.NewAddField(entityRepo, fieldRepo),
 		usecase.NewDeleteField(fieldRepo, moduleRepo, publisher),
@@ -72,10 +73,10 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		Pool:       pool,
 		RabbitConn: rabbitConn,
 		publisher:  publisher,
+		GetProject: getProject,
 	}, nil
 }
 
-// Close đóng publisher, kết nối RabbitMQ và pool PostgreSQL; lỗi đóng publisher hoặc RabbitMQ bị bỏ qua.
 func (a *App) Close() {
 	_ = a.publisher.Close()
 	_ = a.RabbitConn.Close()
@@ -87,7 +88,6 @@ type healthResponse struct {
 	DB     string `json:"db"`
 }
 
-// healthHandler báo trạng thái degraded với HTTP 503 khi kiểm tra PostgreSQL lỗi hoặc quá thời hạn ba giây.
 func healthHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		dbStatus := "ok"
