@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package control.v1;
+
+option go_package = "backify/pkg/proto/control/v1;controlv1";
+
+// ControlPlaneService provides project metadata and full config to other services.
+// Auth Service and (later) Runtime consume this API.
+// Proto3 + careful field numbers → backward compatible.
+service ControlPlaneService {
+  // GetProject returns basic project info.
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+
+  // GetProjectConfig returns full config used by Auth / Runtime.
+  rpc GetProjectConfig(GetProjectConfigRequest) returns (GetProjectConfigResponse);
+}
+
+message GetProjectRequest {
+  string project_id = 1;
+}
+
+message GetProjectResponse {
+  Project project = 1;
+  string error = 2; // non-empty on failure
+}
+
+message GetProjectConfigRequest {
+  string project_id = 1;
+}
+
+message GetProjectConfigResponse {
+  ProjectConfig config = 1;
+  string error = 2;
+}
+
+message Project {
+  string id = 1;
+  string name = 2;
+  string subdomain = 3;
+  string plan = 4;
+  string status = 5; // active | suspended | deleted
+  int64 created_at = 6; // unix seconds
+  int64 updated_at = 7;
+}
+
+message ProjectConfig {
+  Project project = 1;
+  repeated Entity entities = 2;
+  repeated Module modules = 3;
+}
+
+message Entity {
+  string id = 1;
+  string name = 2;
+  repeated Field fields = 3;
+}
+
+message Field {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  bool system = 4;
+  bool unique = 5;
+  repeated string enum_values = 6;
+}
+
+message Module {
+  string id = 1;
+  string name = 2; // auth | crud | storage | ...
+  repeated Function functions = 3;
+}
+
+message Function {
+  string id = 1;
+  string name = 2; // signup | signin | create | ...
+  repeated string enabled_field_ids = 3;
+}
