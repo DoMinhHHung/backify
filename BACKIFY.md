@@ -3,8 +3,8 @@
 > **Backend-as-a-Service cho developer muốn ship nhanh, không muốn config dài dòng.**
 > Tạo backend hoàn chỉnh (auth, CRUD, storage) trong 5 phút qua wizard flow.
 
-**Version:** 0.3.0
-**Ngày:** 2026-09-14
+**Version:** 0.4.0
+**Ngày:** 2026-09-15
 **Trạng thái:** Pre-MVP / Architecture phase
 
 ---
@@ -324,6 +324,41 @@ Vì vậy **sửa lại nội dung confirm dialog** — không nói "xoá toàn 
 
 Cleanup JSONB thật (background job quét và strip key) là việc **optional, đẩy sang Phase 2** nếu cần giảm dung lượng — không phải yêu cầu MVP.
 
+### 7.9. Auth Service — Multi-tenant auth cho end-user
+
+Auth Service phục vụ **end-user của khách hàng** (user của project `shop-app`, `social-app`), không phải platform user (chủ project).
+
+**Quyết định đã chốt:**
+
+| # | Quyết định | Giá trị |
+|---|---|---|
+| 1 | JWT algorithm | HS256 |
+| 2 | JWT expiry | 1 giờ |
+| 3 | Refresh token expiry | 2 lựa chọn: 7 ngày / 30 ngày |
+| 4 | Multi-tenant DB | **Database-per-project** (khác Control Plane dùng schema-per-project) |
+| 5 | OAuth | Phase 2 (không có trong MVP) |
+| 6 | Custom field validation | Không — chỉ system fields (email, password, fullName, phone) |
+| 7 | Scope | 4 tuần |
+
+**Multi-tenant design:**
+- Mỗi project có database riêng: `auth_proj_<project_id>`
+- JWT payload chứa `pid` (project_id)
+- VerifyToken check `pid` khớp với expected project → chặn cross-tenant token reuse
+- Auth Service subscribe `project.created` → tạo database cho project mới
+
+**JWT (HS256):**
+- Access token: HS256, expiry 1 giờ, payload `{sub, pid, email, jti, iat, exp}`
+- Refresh token: random 32 bytes, hash SHA-256 lưu DB, expiry 7 hoặc 30 ngày (user chọn)
+- Refresh token rotate mỗi lần refresh (dùng 1 lần)
+- Token reuse detection: nếu refresh token cũ bị dùng lại → revoke toàn bộ session
+- Blacklist: Redis, key `blacklist:<jti>`, TTL = JWT exp
+
+**HS256 secret management:**
+- Secret load từ env, không commit git
+- 1 secret cho toàn bộ Auth Service (không phải per-project)
+- Runtime cần cùng secret để verify → **vấn đề bảo mật**: nếu Runtime bị compromise → secret lộ → toàn bộ JWT giả mạo được
+- **Mitigation:** Runtime không verify JWT trực tiếp, mà gọi gRPC `AuthService.VerifyToken`. Auth Service giữ secret, Runtime không cần biết.
+
 ---
 
 ## 8. Tech Stack
@@ -440,6 +475,13 @@ Mỗi service có `go.mod` riêng. `pkg/` chỉ chứa infrastructure, không ch
   → Global expansion (i18n + Stripe) gộp chung thành **1 quyết định ở Phase 2**, làm cùng lúc sau khi có traction VN — không tách i18n ra làm sớm riêng lẻ.
   → Không cần tránh né việc code sạch: giữ chuỗi hiển thị (labels, error message cho user) ở tầng handler/presentation theo đúng Clean Architecture sẵn có (mục 7.1 #3) — việc này không tốn thêm effort vì là kỷ luật kiến trúc đã có, không phải build thêm i18n infra.
 
+### Còn mở (v0.4.0)
+
+- **HS256 secret cho Runtime:** Runtime verify JWT thế nào nếu không có secret? → Giải pháp: Runtime gọi gRPC `VerifyToken`. Auth Service giữ secret, verify, trả user info. Runtime không bao giờ thấy secret.
+- **Database-per-project benchmark:** 1 Postgres instance chịu được bao nhiêu database? Cần benchmark như mục 7.7.
+- **Refresh token duration UI:** User chọn 7d/30d ở đâu? Trong signup form hay settings sau?
+- **Custom field trong Auth:** Nếu user muốn `address` trong signup → phải qua Runtime API. Có cần thêm endpoint `PATCH /auth/me` để update metadata không?
+
 ### Còn mở
 
 - Relation field (userId → User) — UI support thế nào? (đã đẩy sang Phase 2, nhưng UI concept chưa thiết kế)
@@ -450,20 +492,16 @@ Mỗi service có `go.mod` riêng. `pkg/` chỉ chứa infrastructure, không ch
 
 ## 13. Non-goals for MVP
 
-Những thứ **KHÔNG** làm ở MVP, để tránh scope creep:
-
-- ❌ Container-per-project (chỉ shared runtime)
-- ❌ Cold shutdown + slot eviction thật (Phase 2)
-- ❌ OpenTelemetry tracing (Phase 2)
-- ❌ Loki centralized logging (Phase 2)
-- ❌ Billing tự động / tích hợp Stripe hoặc payOS (bán thủ công qua chuyển khoản)
-- ❌ Field type migration (cấm đổi type, chỉ add/delete)
-- ❌ i18n / đa ngôn ngữ (MVP chỉ tiếng Việt, gộp chung với Stripe ở Phase 2 — xem mục 12)
-- ❌ Active-purge JSONB khi xoá custom field (key cũ nằm im, cleanup job là Phase 2 — xem mục 7.8)
-- ❌ Relation field (userId → User) (Phase 2)
-- ❌ Custom logic / edge functions (Phase 3)
+- ❌ Billing tự động / cổng thanh toán (Phase 5)
+- ❌ OpenTelemetry full tracing (Phase 5)
+- ❌ Loki centralized logging (Phase 5)
+- ❌ OAuth (Phase 2 — Auth Service MVP chỉ JWT)
+- ❌ i18n / multi-language UI (Phase 2, gộp với global expansion)
+- ❌ Active-purge JSONB khi xoá custom field (Phase 2, optional)
+- ❌ Compute plan thật / container-per-project (Phase 5+)
+- ❌ Cold shutdown + slot eviction (Phase 5+)
+- ❌ Edge functions (Phase 4)
 - ❌ Frontend hosting (Phase 4)
-- ❌ Multi-region (Phase 4)
 - ❌ AI-assisted config (Phase 4)
 - ❌ Marketplace module (Phase 4)
 
@@ -496,6 +534,7 @@ Những thứ **KHÔNG** làm ở MVP, để tránh scope creep:
 | 2026-09-14 | 0.1.0 | Restructure thành bản copy-ready. |
 | 2026-09-14 | 0.2.0 | Sửa inconsistency free tier vs config-driven runtime (mục 6, 7). Định vị lại Field Pool là acquisition wedge, không phải moat — thêm metric config-propagation & zero-downtime migration (mục 2.1). Roadmap 12→13 tuần, cắt observability MVP xuống logging + 1 dashboard, bỏ Billing tự động khỏi MVP (mục 10). Chốt field type immutable ở MVP, versioned field ở Phase 2 (mục 12). Sửa kế hoạch sharding từ hash%N sang lookup table (mục 7.7). Thêm mục "Non-goals for MVP" (mục 13). Thêm open question mới: cascade behavior khi xoá field đang được dùng (mục 12). |
 | 2026-09-14 | 0.3.0 | Chốt xoá field: Hybrid — chặn system field, auto-tắt toggle + confirm cho custom field, KHÔNG active-purge JSONB ở MVP (mục 7.8, 12). Chốt target thị trường: VN-only cho MVP, KHÔNG build i18n ngay — global expansion gộp chung 1 quyết định với Stripe ở Phase 2, khác với đề xuất "VN-first, global-ready" ban đầu (mục 3, 12). Thêm 2 dòng vào Non-goals: i18n và active-purge JSONB (mục 13). |
+| 2026-09-15 | 0.4.0 | Control Plane MVP hoàn thành (7 bước + IDOR fix + race condition fix + transaction fix). Chốt plan Auth Service: HS256, JWT 1h, refresh token 7d/30d, database-per-project, không OAuth ở MVP, không custom field validation, scope 4 tuần. Thêm mục 7.9 (Auth Service design). Thêm open questions mới về HS256 secret, database benchmark, refresh token UI. |
 
 ---
 
