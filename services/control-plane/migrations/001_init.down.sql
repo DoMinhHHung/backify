@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS function_fields;
+DROP TABLE IF EXISTS functions;
+DROP TABLE IF EXISTS modules;
+DROP TABLE IF EXISTS fields;
+DROP TABLE IF EXISTS entities;
+DROP TABLE IF EXISTS projects;

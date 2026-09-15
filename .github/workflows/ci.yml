@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: services/control-plane/go.sum
+
+      - name: Download dependencies
+        run: cd services/control-plane && go mod download
+
+      - name: Check formatting
+        run: |
+          UNFORMATTED=$(gofmt -l services/control-plane)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "Not gofmt'd:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Vet
+        run: cd services/control-plane && go vet ./...
+
+      - name: Build
+        run: make build
+
+      - name: Unit tests
+        run: make test
+
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: backify
+          POSTGRES_PASSWORD: backify
+          POSTGRES_DB: backify
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U backify -d backify"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install golang-migrate
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.1/migrate.linux-amd64.tar.gz | tar xz
+          sudo mv migrate /usr/local/bin/migrate
+
+      - name: Migrate up then down
+        run: |
+          migrate -path services/control-plane/migrations -database "postgres://backify:backify@localhost:5432/backify?sslmode=disable" up
+          migrate -path services/control-plane/migrations -database "postgres://backify:backify@localhost:5432/backify?sslmode=disable" down -all
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: [unit, migrations]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: services/control-plane/go.sum
+
+      - name: Download dependencies
+        run: cd services/control-plane && go mod download
+
+      - name: Integration tests
+        run: make test-integration
+
+      - name: E2E tests
+        run: make test-e2e

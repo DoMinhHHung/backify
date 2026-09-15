@@ -1,0 +1,89 @@
+package domain
+
+import "time"
+
+type ModuleName string
+
+const (
+	ModuleAuth         ModuleName = "auth"
+	ModuleCRUD         ModuleName = "crud"
+	ModuleStorage      ModuleName = "storage"
+	ModuleNotification ModuleName = "notification"
+	ModulePayment      ModuleName = "payment"
+)
+
+func (m ModuleName) Valid() bool {
+	switch m {
+	case ModuleAuth, ModuleCRUD, ModuleStorage, ModuleNotification, ModulePayment:
+		return true
+	default:
+		return false
+	}
+}
+
+// Enabled cho biết module có được hỗ trợ trong MVP hay không; hiện chỉ module auth được bật.
+func (m ModuleName) Enabled() bool {
+	return m == ModuleAuth
+}
+
+var authFunctions = []string{"signup", "signin", "forgotPassword", "oauth"}
+
+var moduleFunctions = map[ModuleName][]string{
+	ModuleAuth: authFunctions,
+}
+
+// FunctionsForModule trả về bản sao danh sách function được hỗ trợ; module chưa được cấu hình trả về nil.
+func FunctionsForModule(name ModuleName) []string {
+	fns, ok := moduleFunctions[name]
+	if !ok {
+		return nil
+	}
+	result := make([]string, len(fns))
+	copy(result, fns)
+	return result
+}
+
+func ValidFunction(name ModuleName, function string) bool {
+	for _, fn := range FunctionsForModule(name) {
+		if fn == function {
+			return true
+		}
+	}
+	return false
+}
+
+type Module struct {
+	ID        string
+	ProjectID string
+	Name      ModuleName
+	CreatedAt time.Time
+}
+
+// NewModule tạo module với mã định danh và thời gian UTC mới khi projectID không trống và tên module hợp lệ.
+func NewModule(projectID string, name ModuleName) (*Module, error) {
+	if projectID == "" {
+		return nil, ErrInvalidInput.WithDetails(map[string]interface{}{
+			"field":  "project_id",
+			"reason": "must not be empty",
+		})
+	}
+
+	if !name.Valid() {
+		return nil, ErrInvalidModuleName.WithDetails(map[string]interface{}{
+			"field": "name",
+			"value": string(name),
+		})
+	}
+
+	id, err := generateID()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Module{
+		ID:        id,
+		ProjectID: projectID,
+		Name:      name,
+		CreatedAt: time.Now().UTC(),
+	}, nil
+}
