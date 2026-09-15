@@ -73,5 +73,15 @@ migrate-up:
 migrate-down:
 	migrate -path $(CONTROL_MIGRATIONS_DIR) -database "$(DATABASE_URL)" down
 
+# Generate protobuf + gRPC stubs. Prefers local `buf`; falls back to Docker image.
 proto:
-	buf generate
+	@if command -v buf >/dev/null 2>&1; then \
+		buf generate; \
+	elif command -v docker >/dev/null 2>&1; then \
+		docker run --rm -v "$$(pwd):/workspace" -w /workspace bufbuild/buf:1.47.2 generate; \
+	else \
+		echo "Neither buf nor docker found. Install one of:"; \
+		echo "  # buf: https://buf.build/docs/installation"; \
+		echo "  go install github.com/bufbuild/buf/cmd/buf@latest"; \
+		exit 1; \
+	fi
