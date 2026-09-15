@@ -21,10 +21,12 @@ func NewModuleRepo(pool *pgxpool.Pool) *ModuleRepo {
 	return &ModuleRepo{pool: pool}
 }
 
-func newRowID() string {
+func newRowID() (string, error) {
 	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 func (r *ModuleRepo) Create(ctx context.Context, module *domain.Module) error {
@@ -33,7 +35,17 @@ func (r *ModuleRepo) Create(ctx context.Context, module *domain.Module) error {
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (project_id, name) DO NOTHING
 	`, module.ID, module.ProjectID, string(module.Name), module.CreatedAt)
-	return err
+	if err != nil {
+		return err
+	}
+
+	persisted, err := r.GetByProjectAndName(ctx, module.ProjectID, module.Name)
+	if err != nil {
+		return err
+	}
+	module.ID = persisted.ID
+	module.CreatedAt = persisted.CreatedAt
+	return nil
 }
 
 func (r *ModuleRepo) GetByProjectAndName(ctx context.Context, projectID string, name domain.ModuleName) (*domain.Module, error) {
@@ -79,11 +91,16 @@ func (r *ModuleRepo) ListByProject(ctx context.Context, projectID string) ([]*do
 }
 
 func (r *ModuleRepo) EnsureFunction(ctx context.Context, moduleID, functionName string) (string, error) {
-	_, err := r.pool.Exec(ctx, `
+	id, err := newRowID()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = r.pool.Exec(ctx, `
 		INSERT INTO functions (id, module_id, name, created_at)
 		VALUES ($1, $2, $3, now())
 		ON CONFLICT (module_id, name) DO NOTHING
-	`, newRowID(), moduleID, functionName)
+	`, id, moduleID, functionName)
 	if err != nil {
 		return "", err
 	}
@@ -100,11 +117,16 @@ func (r *ModuleRepo) EnsureFunction(ctx context.Context, moduleID, functionName 
 }
 
 func (r *ModuleRepo) ToggleFunctionField(ctx context.Context, functionID, fieldID string, enabled bool) error {
-	_, err := r.pool.Exec(ctx, `
+	id, err := newRowID()
+	if err != nil {
+		return err
+	}
+
+	_, err = r.pool.Exec(ctx, `
 		INSERT INTO function_fields (id, function_id, field_id, enabled, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, now(), now())
 		ON CONFLICT (function_id, field_id) DO UPDATE SET enabled = $4, updated_at = now()
-	`, newRowID(), functionID, fieldID, enabled)
+	`, id, functionID, fieldID, enabled)
 	return err
 }
 
@@ -138,4 +160,29 @@ func (r *ModuleRepo) DisableFieldEverywhere(ctx context.Context, fieldID string)
 		WHERE field_id = $1
 	`, fieldID)
 	return err
+}
+
+func (r *ModuleRepo) DisableAndDeleteField(ctx context.Context, fieldID string) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE function_fields SET enabled = false, updated_at = now()
+		WHERE field_id = $1
+	`, fieldID); err != nil {
+		return err
+	}
+
+	tag, err := tx.Exec(ctx, `DELETE FROM fields WHERE id = $1`, fieldID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrFieldNotFound
+	}
+
+	return tx.Commit(ctx)
 }

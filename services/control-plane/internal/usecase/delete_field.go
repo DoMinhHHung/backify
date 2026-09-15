@@ -52,13 +52,13 @@ func (uc *DeleteField) Execute(ctx context.Context, input DeleteFieldInput) erro
 	}
 
 	if len(usages) > 0 {
-		if err := uc.modules.DisableFieldEverywhere(ctx, field.ID); err != nil {
+		if err := uc.modules.DisableAndDeleteField(ctx, field.ID); err != nil {
 			return err
 		}
-	}
-
-	if err := uc.fields.Delete(ctx, field.ID); err != nil {
-		return err
+	} else {
+		if err := uc.fields.Delete(ctx, field.ID); err != nil {
+			return err
+		}
 	}
 
 	return uc.publisher.Publish(ctx, port.Event{

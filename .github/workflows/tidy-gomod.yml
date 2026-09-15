@@ -26,7 +26,7 @@ jobs:
         run: cd services/control-plane && go mod tidy
 
       - name: Commit go.sum
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@b863ae183449fc8753cb72cf1f193c0a55661540
         with:
           commit_message: "chore: go mod tidy - generate go.sum"
           file_pattern: "services/control-plane/go.mod services/control-plane/go.sum"

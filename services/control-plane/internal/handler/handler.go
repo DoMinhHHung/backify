@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 
 	"backify/services/control-plane/internal/domain"
 	"backify/services/control-plane/internal/usecase"
@@ -70,14 +71,18 @@ type errorBody struct {
 func writeData(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(envelope{Data: data})
+	if err := json.NewEncoder(w).Encode(envelope{Data: data}); err != nil {
+		log.Error().Err(err).Msg("failed to encode response")
+	}
 }
 
 func writeError(w http.ResponseWriter, err error) {
 	status, body := mapError(err)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(envelope{Error: body})
+	if encErr := json.NewEncoder(w).Encode(envelope{Error: body}); encErr != nil {
+		log.Error().Err(encErr).Msg("failed to encode error response")
+	}
 }
 
 func mapError(err error) (int, *errorBody) {

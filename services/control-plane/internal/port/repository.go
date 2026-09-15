@@ -42,4 +42,5 @@ type ModuleRepository interface {
 	ToggleFunctionField(ctx context.Context, functionID, fieldID string, enabled bool) error
 	ListFieldUsages(ctx context.Context, fieldID string) ([]FieldUsage, error)
 	DisableFieldEverywhere(ctx context.Context, fieldID string) error
+	DisableAndDeleteField(ctx context.Context, fieldID string) error
 }

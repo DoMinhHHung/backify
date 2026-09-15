@@ -58,7 +58,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		usecase.NewAddEntity(projectRepo, entityRepo),
 		usecase.NewAddField(entityRepo, fieldRepo),
 		usecase.NewDeleteField(fieldRepo, moduleRepo, publisher),
-		usecase.NewConfigModule(projectRepo, fieldRepo, moduleRepo, publisher),
+		usecase.NewConfigModule(projectRepo, entityRepo, fieldRepo, moduleRepo, publisher),
 	)
 
 	router := chi.NewRouter()

@@ -25,13 +25,14 @@ type ToggleFieldInput struct {
 
 type ConfigModule struct {
 	projects  port.ProjectRepository
+	entities  port.EntityRepository
 	fields    port.FieldRepository
 	modules   port.ModuleRepository
 	publisher port.EventPublisher
 }
 
-func NewConfigModule(projects port.ProjectRepository, fields port.FieldRepository, modules port.ModuleRepository, publisher port.EventPublisher) *ConfigModule {
-	return &ConfigModule{projects: projects, fields: fields, modules: modules, publisher: publisher}
+func NewConfigModule(projects port.ProjectRepository, entities port.EntityRepository, fields port.FieldRepository, modules port.ModuleRepository, publisher port.EventPublisher) *ConfigModule {
+	return &ConfigModule{projects: projects, entities: entities, fields: fields, modules: modules, publisher: publisher}
 }
 
 func (uc *ConfigModule) ToggleField(ctx context.Context, input ToggleFieldInput) error {
@@ -51,8 +52,17 @@ func (uc *ConfigModule) ToggleField(ctx context.Context, input ToggleFieldInput)
 		return domain.ErrFunctionNotFound
 	}
 
-	if _, err := uc.fields.GetByID(ctx, input.FieldID); err != nil {
+	field, err := uc.fields.GetByID(ctx, input.FieldID)
+	if err != nil {
 		return err
+	}
+
+	entity, err := uc.entities.GetByID(ctx, field.EntityID)
+	if err != nil {
+		return domain.ErrFieldNotFound
+	}
+	if entity.ProjectID != input.ProjectID {
+		return domain.ErrFieldNotFound
 	}
 
 	module, err := uc.modules.GetByProjectAndName(ctx, input.ProjectID, input.Module)
