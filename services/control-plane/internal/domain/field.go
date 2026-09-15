@@ -89,8 +89,13 @@ func NewField(entityID, name string, fieldType FieldType) (*Field, error) {
 		})
 	}
 
+	id, err := generateID()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Field{
-		ID:        generateID(),
+		ID:        id,
 		EntityID:  entityID,
 		Name:      name,
 		Type:      fieldType,

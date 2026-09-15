@@ -40,10 +40,15 @@ func NewEntity(projectID, name string) (*Entity, error) {
 		return nil, err
 	}
 
+	id, err := generateID()
+	if err != nil {
+		return nil, err
+	}
+
 	now := time.Now().UTC()
 
 	return &Entity{
-		ID:        generateID(),
+		ID:        id,
 		ProjectID: projectID,
 		Name:      name,
 		IsSystem:  name == SystemEntityUser,

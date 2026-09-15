@@ -32,7 +32,7 @@ func TestNewProject_EmptyName(t *testing.T) {
 }
 
 func TestNewProject_InvalidSubdomain(t *testing.T) {
-	cases := []string{"ab", "Shop-App", "shop_app", "shop app", "this-subdomain-is-way-too-long-to-be-valid"}
+	cases := []string{"ab", "Shop-App", "shop_app", "shop app", "-abc", "abc-", "this-subdomain-is-way-too-long-to-be-valid"}
 	for _, subdomain := range cases {
 		_, err := NewProject("Shop App", subdomain)
 		if err == nil {

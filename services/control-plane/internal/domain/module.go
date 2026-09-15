@@ -72,8 +72,13 @@ func NewModule(projectID string, name ModuleName) (*Module, error) {
 		})
 	}
 
+	id, err := generateID()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Module{
-		ID:        generateID(),
+		ID:        id,
 		ProjectID: projectID,
 		Name:      name,
 		CreatedAt: time.Now().UTC(),

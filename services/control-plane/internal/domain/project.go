@@ -43,7 +43,7 @@ func (s ProjectStatus) Valid() bool {
 	}
 }
 
-var subdomainPattern = regexp.MustCompile(`^[a-z0-9-]{3,30}$`)
+var subdomainPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{1,28}[a-z0-9])$`)
 
 type Project struct {
 	ID         string
@@ -56,17 +56,19 @@ type Project struct {
 	UpdatedAt  time.Time
 }
 
-func generateID() string {
+func generateID() (string, error) {
 	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 func validateSubdomain(subdomain string) error {
 	if !subdomainPattern.MatchString(subdomain) {
 		return ErrInvalidInput.WithDetails(map[string]interface{}{
 			"field":  "subdomain",
-			"reason": "must be lowercase alphanumeric with hyphens, 3-30 chars",
+			"reason": "must be lowercase alphanumeric with hyphens, 3-30 chars, no leading/trailing hyphen",
 		})
 	}
 	return nil
@@ -85,7 +87,10 @@ func NewProject(name, subdomain string) (*Project, error) {
 		return nil, err
 	}
 
-	id := generateID()
+	id, err := generateID()
+	if err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC()
 
 	return &Project{
