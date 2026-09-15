@@ -61,6 +61,9 @@ func (uc *ConfigModule) ToggleField(ctx context.Context, input ToggleFieldInput)
 
 	entity, err := uc.entities.GetByID(ctx, field.EntityID)
 	if err != nil {
+		if err != domain.ErrEntityNotFound {
+			return err
+		}
 		return domain.ErrFieldNotFound
 	}
 	if entity.ProjectID != input.ProjectID {
