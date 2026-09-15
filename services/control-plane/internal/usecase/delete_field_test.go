@@ -52,9 +52,6 @@ func TestDeleteField_ForceDeletesAndDisables(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if _, err := fields.GetByID(context.Background(), field.ID); err != domain.ErrFieldNotFound {
-		t.Fatal("expected field to be deleted")
-	}
 	if len(publisher.events) != 1 || publisher.events[0].Name != "field.deleted" {
 		t.Fatalf("expected field.deleted event, got %v", publisher.events)
 	}

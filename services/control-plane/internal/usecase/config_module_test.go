@@ -9,16 +9,19 @@ import (
 
 func TestConfigModule_ToggleField_Success(t *testing.T) {
 	projects := newMockProjectRepo()
+	entities := newMockEntityRepo()
 	fields := newMockFieldRepo()
 	modules := newMockModuleRepo()
 	publisher := &mockEventPublisher{}
 
 	project, _ := domain.NewProject("Shop App", "shop-app")
 	_ = projects.Create(context.Background(), project)
-	field, _ := domain.NewField("entity1", "bio", domain.FieldTypeText)
+	entity, _ := domain.NewEntity(project.ID, "user")
+	_ = entities.Create(context.Background(), entity)
+	field, _ := domain.NewField(entity.ID, "bio", domain.FieldTypeText)
 	_ = fields.Create(context.Background(), field)
 
-	uc := NewConfigModule(projects, fields, modules, publisher)
+	uc := NewConfigModule(projects, entities, fields, modules, publisher)
 	err := uc.ToggleField(context.Background(), ToggleFieldInput{
 		ProjectID: project.ID,
 		Module:    domain.ModuleAuth,
@@ -34,18 +37,50 @@ func TestConfigModule_ToggleField_Success(t *testing.T) {
 	}
 }
 
-func TestConfigModule_InvalidFunction(t *testing.T) {
+func TestConfigModule_FieldFromOtherProject(t *testing.T) {
 	projects := newMockProjectRepo()
+	entities := newMockEntityRepo()
 	fields := newMockFieldRepo()
 	modules := newMockModuleRepo()
 	publisher := &mockEventPublisher{}
 
 	project, _ := domain.NewProject("Shop App", "shop-app")
 	_ = projects.Create(context.Background(), project)
-	field, _ := domain.NewField("entity1", "bio", domain.FieldTypeText)
+	other, _ := domain.NewProject("Other", "other-app")
+	_ = projects.Create(context.Background(), other)
+	entity, _ := domain.NewEntity(other.ID, "product")
+	_ = entities.Create(context.Background(), entity)
+	field, _ := domain.NewField(entity.ID, "title", domain.FieldTypeString)
 	_ = fields.Create(context.Background(), field)
 
-	uc := NewConfigModule(projects, fields, modules, publisher)
+	uc := NewConfigModule(projects, entities, fields, modules, publisher)
+	err := uc.ToggleField(context.Background(), ToggleFieldInput{
+		ProjectID: project.ID,
+		Module:    domain.ModuleAuth,
+		Function:  "signup",
+		FieldID:   field.ID,
+		Enabled:   true,
+	})
+	if err != domain.ErrFieldNotFound {
+		t.Fatalf("expected ErrFieldNotFound, got %v", err)
+	}
+}
+
+func TestConfigModule_InvalidFunction(t *testing.T) {
+	projects := newMockProjectRepo()
+	entities := newMockEntityRepo()
+	fields := newMockFieldRepo()
+	modules := newMockModuleRepo()
+	publisher := &mockEventPublisher{}
+
+	project, _ := domain.NewProject("Shop App", "shop-app")
+	_ = projects.Create(context.Background(), project)
+	entity, _ := domain.NewEntity(project.ID, "user")
+	_ = entities.Create(context.Background(), entity)
+	field, _ := domain.NewField(entity.ID, "bio", domain.FieldTypeText)
+	_ = fields.Create(context.Background(), field)
+
+	uc := NewConfigModule(projects, entities, fields, modules, publisher)
 	err := uc.ToggleField(context.Background(), ToggleFieldInput{
 		ProjectID: project.ID,
 		Module:    domain.ModuleAuth,
@@ -60,16 +95,19 @@ func TestConfigModule_InvalidFunction(t *testing.T) {
 
 func TestConfigModule_NonAuthModuleDisabled(t *testing.T) {
 	projects := newMockProjectRepo()
+	entities := newMockEntityRepo()
 	fields := newMockFieldRepo()
 	modules := newMockModuleRepo()
 	publisher := &mockEventPublisher{}
 
 	project, _ := domain.NewProject("Shop App", "shop-app")
 	_ = projects.Create(context.Background(), project)
-	field, _ := domain.NewField("entity1", "bio", domain.FieldTypeText)
+	entity, _ := domain.NewEntity(project.ID, "user")
+	_ = entities.Create(context.Background(), entity)
+	field, _ := domain.NewField(entity.ID, "bio", domain.FieldTypeText)
 	_ = fields.Create(context.Background(), field)
 
-	uc := NewConfigModule(projects, fields, modules, publisher)
+	uc := NewConfigModule(projects, entities, fields, modules, publisher)
 	err := uc.ToggleField(context.Background(), ToggleFieldInput{
 		ProjectID: project.ID,
 		Module:    domain.ModuleCRUD,
@@ -84,16 +122,19 @@ func TestConfigModule_NonAuthModuleDisabled(t *testing.T) {
 
 func TestConfigModule_ListModules(t *testing.T) {
 	projects := newMockProjectRepo()
+	entities := newMockEntityRepo()
 	fields := newMockFieldRepo()
 	modules := newMockModuleRepo()
 	publisher := &mockEventPublisher{}
 
 	project, _ := domain.NewProject("Shop App", "shop-app")
 	_ = projects.Create(context.Background(), project)
-	field, _ := domain.NewField("entity1", "bio", domain.FieldTypeText)
+	entity, _ := domain.NewEntity(project.ID, "user")
+	_ = entities.Create(context.Background(), entity)
+	field, _ := domain.NewField(entity.ID, "bio", domain.FieldTypeText)
 	_ = fields.Create(context.Background(), field)
 
-	uc := NewConfigModule(projects, fields, modules, publisher)
+	uc := NewConfigModule(projects, entities, fields, modules, publisher)
 	_ = uc.ToggleField(context.Background(), ToggleFieldInput{
 		ProjectID: project.ID,
 		Module:    domain.ModuleAuth,

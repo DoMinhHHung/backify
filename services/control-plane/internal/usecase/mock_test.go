@@ -174,6 +174,10 @@ func newMockModuleRepo() *mockModuleRepo {
 
 func (m *mockModuleRepo) Create(ctx context.Context, module *domain.Module) error {
 	key := module.ProjectID + ":" + string(module.Name)
+	if existing, ok := m.modules[key]; ok {
+		module.ID = existing.ID
+		return nil
+	}
 	m.modules[key] = module
 	return nil
 }
@@ -218,6 +222,11 @@ func (m *mockModuleRepo) ListFieldUsages(ctx context.Context, fieldID string) ([
 }
 
 func (m *mockModuleRepo) DisableFieldEverywhere(ctx context.Context, fieldID string) error {
+	delete(m.usages, fieldID)
+	return nil
+}
+
+func (m *mockModuleRepo) DisableAndDeleteField(ctx context.Context, fieldID string) error {
 	delete(m.usages, fieldID)
 	return nil
 }
