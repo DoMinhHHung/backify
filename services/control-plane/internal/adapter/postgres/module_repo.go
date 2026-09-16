@@ -134,6 +134,51 @@ func (r *ModuleRepo) ToggleFunctionField(ctx context.Context, functionID, fieldI
 	return err
 }
 
+// ListFunctionsByModule trả về mọi function của module cùng field ID đang bật,
+// gộp theo function bằng LEFT JOIN nên function chưa toggle field nào vẫn
+// xuất hiện với EnabledFieldIDs rỗng (không bị loại khỏi kết quả).
+func (r *ModuleRepo) ListFunctionsByModule(ctx context.Context, moduleID string) ([]port.FunctionConfig, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT f.id, f.name, ff.field_id
+		FROM functions f
+		LEFT JOIN function_fields ff ON ff.function_id = f.id AND ff.enabled = true
+		WHERE f.module_id = $1
+		ORDER BY f.created_at ASC
+	`, moduleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	order := make([]string, 0)
+	byID := make(map[string]*port.FunctionConfig)
+	for rows.Next() {
+		var functionID, functionName string
+		var fieldID *string
+		if err := rows.Scan(&functionID, &functionName, &fieldID); err != nil {
+			return nil, err
+		}
+		fn, ok := byID[functionID]
+		if !ok {
+			fn = &port.FunctionConfig{ID: functionID, Name: functionName}
+			byID[functionID] = fn
+			order = append(order, functionID)
+		}
+		if fieldID != nil {
+			fn.EnabledFieldIDs = append(fn.EnabledFieldIDs, *fieldID)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	functions := make([]port.FunctionConfig, 0, len(order))
+	for _, id := range order {
+		functions = append(functions, *byID[id])
+	}
+	return functions, nil
+}
+
 // ListFieldUsages trả về các function đang bật field; các liên kết đã tắt không được tính là đang sử dụng.
 func (r *ModuleRepo) ListFieldUsages(ctx context.Context, fieldID string) ([]port.FieldUsage, error) {
 	rows, err := r.pool.Query(ctx, `
