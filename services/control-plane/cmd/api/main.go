@@ -62,9 +62,14 @@ func main() {
 		}
 	}()
 
+	grpcListener, err := cpgrpc.Listen(grpcAddr)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to open gRPC listener")
+	}
+	grpcServer := cpgrpc.NewGRPCServer(cpgrpc.NewServer(application.GetProject, application.GetProjectConfig))
 	go func() {
-		grpcServer := cpgrpc.NewServer(application.GetProject)
-		if err := cpgrpc.ListenAndServe(grpcAddr, grpcServer); err != nil {
+		log.Info().Str("addr", grpcAddr).Msg("control-plane gRPC starting")
+		if err := grpcServer.Serve(grpcListener); err != nil {
 			log.Fatal().Err(err).Msg("gRPC server failed")
 		}
 	}()
@@ -77,6 +82,21 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
+
+	// GracefulStop trước Shutdown HTTP: gRPC không nhận context timeout nên
+	// nếu treo (client giữ stream mở) sẽ chặn tiến trình thoát; chạy trong
+	// goroutine kèm timeout riêng để không phụ thuộc vào shutdownCtx của HTTP.
+	grpcStopped := make(chan struct{})
+	go func() {
+		grpcServer.GracefulStop()
+		close(grpcStopped)
+	}()
+	select {
+	case <-grpcStopped:
+	case <-time.After(10 * time.Second):
+		log.Warn().Msg("gRPC graceful stop timed out, forcing stop")
+		grpcServer.Stop()
+	}
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Fatal().Err(err).Msg("graceful shutdown failed")

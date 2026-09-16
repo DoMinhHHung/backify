@@ -11,6 +11,15 @@ type FieldUsage struct {
 	FunctionName string
 }
 
+// FunctionConfig là read-model cho một function: tên và field ID đang bật.
+// Tách khỏi domain.Module vì đây là dữ liệu tổng hợp chỉ phục vụ đọc
+// (GetProjectConfig qua gRPC), không phải aggregate có hành vi ghi.
+type FunctionConfig struct {
+	ID              string
+	Name            string
+	EnabledFieldIDs []string
+}
+
 type ProjectRepository interface {
 	Create(ctx context.Context, project *domain.Project) error
 	GetByID(ctx context.Context, id string) (*domain.Project, error)
@@ -41,6 +50,9 @@ type ModuleRepository interface {
 	EnsureFunction(ctx context.Context, moduleID, functionName string) (string, error)
 	ToggleFunctionField(ctx context.Context, functionID, fieldID string, enabled bool) error
 	ListFieldUsages(ctx context.Context, fieldID string) ([]FieldUsage, error)
+	// ListFunctionsByModule trả về mọi function của module kèm field ID đang
+	// bật (enabled = true); function chưa toggle field nào có EnabledFieldIDs rỗng.
+	ListFunctionsByModule(ctx context.Context, moduleID string) ([]FunctionConfig, error)
 	DisableFieldEverywhere(ctx context.Context, fieldID string) error
 	DisableAndDeleteField(ctx context.Context, fieldID string) error
 }
