@@ -28,21 +28,10 @@ infra-logs:
 	docker compose -f deployments/docker-compose.yml logs -f
 
 run:
-	cd $(CONTROL_PLANE_DIR) && \
-		DATABASE_URL="$(DATABASE_URL)" \
-		RABBITMQ_URL="$(RABBITMQ_URL)" \
-		GRPC_ADDR=:9091 \
-		go run ./cmd/api
+	cd $(CONTROL_PLANE_DIR) && go run ./cmd/api
 
 run-auth:
-	cd $(AUTH_DIR) && \
-		AUTH_DATABASE_URL="$(AUTH_DATABASE_URL)" \
-		REDIS_URL="$(REDIS_URL)" \
-		RABBITMQ_URL="$(RABBITMQ_URL)" \
-		JWT_SECRET="$(JWT_SECRET)" \
-		CONTROL_PLANE_GRPC_ADDR="$(CONTROL_PLANE_GRPC_ADDR)" \
-		PORT=8081 \
-		go run ./cmd/api
+	cd $(AUTH_DIR) && go run ./cmd/api
 
 run-all:
 	@echo "Start control-plane (HTTP :8080, gRPC :9091) and auth (:8081) in separate terminals:"

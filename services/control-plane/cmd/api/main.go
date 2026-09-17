@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -18,6 +19,13 @@ import (
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+
+	// Load .env nếu có (CWD lúc go run là services/control-plane/, khớp với
+	// `cd $(CONTROL_PLANE_DIR) && go run` trong Makefile). Lỗi bị bỏ qua có
+	// chủ đích: không có .env là bình thường ở production (biến môi trường
+	// đến từ hệ thống triển khai), godotenv không được ghi đè biến đã có sẵn
+	// trong môi trường nên không xung đột với cách deploy hiện tại.
+	_ = godotenv.Load()
 
 	port := os.Getenv("PORT")
 	if port == "" {

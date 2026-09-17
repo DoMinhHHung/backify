@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -17,6 +18,12 @@ import (
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+
+	// Load .env nếu có (CWD lúc go run là services/auth/, khớp với
+	// `cd $(AUTH_DIR) && go run` trong Makefile). Lỗi bị bỏ qua có chủ đích:
+	// không có .env là bình thường ở production, và godotenv không ghi đè
+	// biến đã có sẵn trong môi trường nên không xung đột với cách deploy hiện tại.
+	_ = godotenv.Load()
 
 	port := envOr("PORT", "8081")
 
@@ -65,7 +72,8 @@ func main() {
 }
 
 // envOr đọc biến môi trường k; trả def nếu chưa set — dùng cho mọi tham số
-// kết nối để service chạy được ngay ở local dev không cần .env.
+// kết nối để service chạy được ngay ở local dev kể cả không có .env lẫn
+// không set biến môi trường nào (mặc định trỏ vào docker-compose local).
 func envOr(k, def string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
