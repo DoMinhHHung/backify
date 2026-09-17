@@ -68,7 +68,6 @@ func (x *GetProjectRequest) GetProjectId() string {
 type GetProjectResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"` // non-empty on failure
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -108,13 +107,6 @@ func (x *GetProjectResponse) GetProject() *Project {
 		return x.Project
 	}
 	return nil
-}
-
-func (x *GetProjectResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type GetProjectConfigRequest struct {
@@ -164,7 +156,6 @@ func (x *GetProjectConfigRequest) GetProjectId() string {
 type GetProjectConfigResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Config        *ProjectConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -204,13 +195,6 @@ func (x *GetProjectConfigResponse) GetConfig() *ProjectConfig {
 		return x.Config
 	}
 	return nil
-}
-
-func (x *GetProjectConfigResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type Project struct {
@@ -370,6 +354,7 @@ type Entity struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Fields        []*Field               `protobuf:"bytes,3,rep,name=fields,proto3" json:"fields,omitempty"`
+	IsSystem      bool                   `protobuf:"varint,4,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -425,14 +410,19 @@ func (x *Entity) GetFields() []*Field {
 	return nil
 }
 
+func (x *Entity) GetIsSystem() bool {
+	if x != nil {
+		return x.IsSystem
+	}
+	return false
+}
+
 type Field struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
 	System        bool                   `protobuf:"varint,4,opt,name=system,proto3" json:"system,omitempty"`
-	Unique        bool                   `protobuf:"varint,5,opt,name=unique,proto3" json:"unique,omitempty"`
-	EnumValues    []string               `protobuf:"bytes,6,rep,name=enum_values,json=enumValues,proto3" json:"enum_values,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -493,20 +483,6 @@ func (x *Field) GetSystem() bool {
 		return x.System
 	}
 	return false
-}
-
-func (x *Field) GetUnique() bool {
-	if x != nil {
-		return x.Unique
-	}
-	return false
-}
-
-func (x *Field) GetEnumValues() []string {
-	if x != nil {
-		return x.EnumValues
-	}
-	return nil
 }
 
 type Module struct {
@@ -637,16 +613,14 @@ const file_control_v1_control_proto_rawDesc = "" +
 	"control.v1\"2\n" +
 	"\x11GetProjectRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\"Y\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"C\n" +
 	"\x12GetProjectResponse\x12-\n" +
-	"\aproject\x18\x01 \x01(\v2\x13.control.v1.ProjectR\aproject\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"8\n" +
+	"\aproject\x18\x01 \x01(\v2\x13.control.v1.ProjectR\aproject\"8\n" +
 	"\x17GetProjectConfigRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\"c\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"M\n" +
 	"\x18GetProjectConfigResponse\x121\n" +
-	"\x06config\x18\x01 \x01(\v2\x19.control.v1.ProjectConfigR\x06config\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"\xb5\x01\n" +
+	"\x06config\x18\x01 \x01(\v2\x19.control.v1.ProjectConfigR\x06config\"\xb5\x01\n" +
 	"\aProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1c\n" +
@@ -660,19 +634,17 @@ const file_control_v1_control_proto_rawDesc = "" +
 	"\rProjectConfig\x12-\n" +
 	"\aproject\x18\x01 \x01(\v2\x13.control.v1.ProjectR\aproject\x12.\n" +
 	"\bentities\x18\x02 \x03(\v2\x12.control.v1.EntityR\bentities\x12,\n" +
-	"\amodules\x18\x03 \x03(\v2\x12.control.v1.ModuleR\amodules\"W\n" +
+	"\amodules\x18\x03 \x03(\v2\x12.control.v1.ModuleR\amodules\"t\n" +
 	"\x06Entity\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
-	"\x06fields\x18\x03 \x03(\v2\x11.control.v1.FieldR\x06fields\"\x90\x01\n" +
+	"\x06fields\x18\x03 \x03(\v2\x11.control.v1.FieldR\x06fields\x12\x1b\n" +
+	"\tis_system\x18\x04 \x01(\bR\bisSystem\"W\n" +
 	"\x05Field\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12\x16\n" +
-	"\x06system\x18\x04 \x01(\bR\x06system\x12\x16\n" +
-	"\x06unique\x18\x05 \x01(\bR\x06unique\x12\x1f\n" +
-	"\venum_values\x18\x06 \x03(\tR\n" +
-	"enumValues\"`\n" +
+	"\x06system\x18\x04 \x01(\bR\x06system\"`\n" +
 	"\x06Module\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x122\n" +

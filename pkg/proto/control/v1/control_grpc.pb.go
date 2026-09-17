@@ -30,6 +30,11 @@ const (
 // ControlPlaneService provides project metadata and full config to other services.
 // Auth Service and (later) Runtime consume this API.
 // Proto3 + careful field numbers → backward compatible.
+//
+// Failures use standard gRPC status codes, not an in-band error field:
+// NotFound when the project doesn't exist, InvalidArgument for a missing
+// project_id, Internal for anything else. Callers should use
+// google.golang.org/grpc/status to inspect errors.
 type ControlPlaneServiceClient interface {
 	// GetProject returns basic project info.
 	GetProject(ctx context.Context, in *GetProjectRequest, opts ...grpc.CallOption) (*GetProjectResponse, error)
@@ -72,6 +77,11 @@ func (c *controlPlaneServiceClient) GetProjectConfig(ctx context.Context, in *Ge
 // ControlPlaneService provides project metadata and full config to other services.
 // Auth Service and (later) Runtime consume this API.
 // Proto3 + careful field numbers → backward compatible.
+//
+// Failures use standard gRPC status codes, not an in-band error field:
+// NotFound when the project doesn't exist, InvalidArgument for a missing
+// project_id, Internal for anything else. Callers should use
+// google.golang.org/grpc/status to inspect errors.
 type ControlPlaneServiceServer interface {
 	// GetProject returns basic project info.
 	GetProject(context.Context, *GetProjectRequest) (*GetProjectResponse, error)
