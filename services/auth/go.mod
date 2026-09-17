@@ -9,6 +9,7 @@ require (
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/rs/zerolog v1.33.0
 	github.com/sony/gobreaker v1.0.0
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.34.0
 	google.golang.org/grpc v1.67.1
 )
 

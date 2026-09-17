@@ -42,6 +42,10 @@ type App struct {
 	Subscriber      *rabbitmq.Subscriber
 	ControlPlane    *controlclient.Client
 	DatabaseManager *postgres.DatabaseManager
+	Users           *postgres.UserRepo
+	RefreshTokens   *postgres.RefreshTokenRepo
+	PasswordResets  *postgres.PasswordResetRepo
+	conns           *postgres.ConnManager
 	controlConn     *grpc.ClientConn
 }
 
@@ -77,6 +81,14 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	// admin để CREATE DATABASE/DROP DATABASE — không cần pool riêng, admin
 	// operations không tốn connection lâu.
 	dbManager := postgres.NewDatabaseManager(authPool)
+
+	// conns định tuyến tới đúng database auth_proj_<projectID> cho từng
+	// lời gọi repository (Bước 4) — cũng dùng authPool làm mẫu cấu hình
+	// (host/user/password), không phải để chạy query cho project nào.
+	conns := postgres.NewConnManager(authPool)
+	users := postgres.NewUserRepo(conns)
+	refreshTokens := postgres.NewRefreshTokenRepo(conns)
+	passwordResets := postgres.NewPasswordResetRepo(conns)
 
 	subscriber, err := rabbitmq.NewSubscriber(rabbitConn, dbManager)
 	if err != nil {
@@ -121,18 +133,24 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		Subscriber:      subscriber,
 		ControlPlane:    controlClient,
 		DatabaseManager: dbManager,
+		Users:           users,
+		RefreshTokens:   refreshTokens,
+		PasswordResets:  passwordResets,
+		conns:           conns,
 		controlConn:     controlConn,
 	}, nil
 }
 
-// Close đóng gRPC connection, subscriber, RabbitMQ, Redis rồi Auth DB pool,
-// theo thứ tự ngược lại lúc mở. Lỗi đóng RabbitMQ/Redis/subscriber/gRPC bị
-// bỏ qua vì không còn hành động khắc phục nào khi service đang shutdown.
+// Close đóng gRPC connection, subscriber, RabbitMQ, Redis, mọi pool per-project
+// (conns) rồi Auth DB pool, theo thứ tự ngược lại lúc mở. Lỗi đóng RabbitMQ/
+// Redis/subscriber/gRPC bị bỏ qua vì không còn hành động khắc phục nào khi
+// service đang shutdown.
 func (a *App) Close() {
 	_ = a.controlConn.Close()
 	_ = a.Subscriber.Close()
 	_ = a.RabbitConn.Close()
 	_ = a.RedisClient.Close()
+	a.conns.Close()
 	a.AuthPool.Close()
 }
 
