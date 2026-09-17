@@ -17,6 +17,9 @@ const (
 
 var phonePattern = regexp.MustCompile(`^[+]?[0-9]{7,15}$`)
 
+// User là end-user của một project (email + password, provider "email" cho
+// MVP). Email chỉ unique trong phạm vi ProjectID, không unique toàn hệ thống
+// — user của project A và B được phép trùng email (theo BACKIFY.md §7.9).
 type User struct {
 	ID           string
 	ProjectID    string
@@ -45,6 +48,10 @@ func validateEmail(email string) error {
 	return nil
 }
 
+// ValidatePassword kiểm tra độ dài thô (8-72 ký tự) trước khi hash bằng
+// argon2id — 72 là giới hạn an toàn thực tế cho hầu hết thuật toán hash mật
+// khẩu, không phải rule độ mạnh mật khẩu (password strength check là Phase 2,
+// nằm ngoài scope MVP).
 func ValidatePassword(password string) error {
 	length := utf8.RuneCountInString(password)
 	if length < MinPasswordLength {
@@ -96,6 +103,11 @@ func validatePhone(phone string) error {
 	return nil
 }
 
+// NewUser tạo User mới sau khi validate email/fullName/phone; PasswordHash
+// để trống — caller (usecase signup) hash password riêng bằng argon2id rồi
+// gọi SetPasswordHash, vì domain không được import package hash (chỉ stdlib).
+// fullName/phone rỗng hợp lệ (chỉ 3 field hệ thống bắt buộc: email, password;
+// fullName/phone là optional theo request format trong BACKIFY.md §7.9).
 func NewUser(projectID, email, fullName, phone string) (*User, error) {
 	if strings.TrimSpace(projectID) == "" {
 		return nil, ErrInvalidInput.WithDetails(map[string]interface{}{
@@ -131,6 +143,8 @@ func NewUser(projectID, email, fullName, phone string) (*User, error) {
 	}, nil
 }
 
+// SetPasswordHash gán hash argon2id đã tính sẵn (domain không tự hash) và
+// cập nhật UpdatedAt; trả lỗi nếu hash rỗng để tránh lưu user không có mật khẩu.
 func (u *User) SetPasswordHash(hash string) error {
 	if hash == "" {
 		return ErrInvalidInput.WithDetails(map[string]interface{}{

@@ -217,6 +217,28 @@ func (m *mockModuleRepo) ToggleFunctionField(ctx context.Context, functionID, fi
 	return nil
 }
 
+func (m *mockModuleRepo) ListFunctionsByModule(ctx context.Context, moduleID string) ([]port.FunctionConfig, error) {
+	var result []port.FunctionConfig
+	for key, functionID := range m.functions {
+		prefix := moduleID + ":"
+		if len(key) <= len(prefix) || key[:len(prefix)] != prefix {
+			continue
+		}
+		fn := port.FunctionConfig{ID: functionID, Name: key[len(prefix):]}
+		for fkey, enabled := range m.functionField {
+			if !enabled {
+				continue
+			}
+			fPrefix := functionID + ":"
+			if len(fkey) > len(fPrefix) && fkey[:len(fPrefix)] == fPrefix {
+				fn.EnabledFieldIDs = append(fn.EnabledFieldIDs, fkey[len(fPrefix):])
+			}
+		}
+		result = append(result, fn)
+	}
+	return result, nil
+}
+
 func (m *mockModuleRepo) ListFieldUsages(ctx context.Context, fieldID string) ([]port.FieldUsage, error) {
 	return m.usages[fieldID], nil
 }
