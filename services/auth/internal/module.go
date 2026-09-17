@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 
 	controlv1 "backify/pkg/proto/control/v1"
+	"backify/services/auth/internal/adapter/postgres"
 	"backify/services/auth/internal/adapter/rabbitmq"
 	"backify/services/auth/internal/controlclient"
 )
@@ -34,13 +35,14 @@ type Config struct {
 
 // App giữ toàn bộ tài nguyên đã kết nối và router HTTP của Auth Service.
 type App struct {
-	Router       chi.Router
-	AuthPool     *pgxpool.Pool
-	RedisClient  *redis.Client
-	RabbitConn   *amqp.Connection
-	Subscriber   *rabbitmq.Subscriber
-	ControlPlane *controlclient.Client
-	controlConn  *grpc.ClientConn
+	Router          chi.Router
+	AuthPool        *pgxpool.Pool
+	RedisClient     *redis.Client
+	RabbitConn      *amqp.Connection
+	Subscriber      *rabbitmq.Subscriber
+	ControlPlane    *controlclient.Client
+	DatabaseManager *postgres.DatabaseManager
+	controlConn     *grpc.ClientConn
 }
 
 // New kết nối Auth DB, Redis, RabbitMQ và gRPC Control Plane, khởi động
@@ -71,7 +73,12 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		return nil, err
 	}
 
-	subscriber, err := rabbitmq.NewSubscriber(rabbitConn)
+	// dbManager dùng authPool (kết nối tới database "auth") làm connection
+	// admin để CREATE DATABASE/DROP DATABASE — không cần pool riêng, admin
+	// operations không tốn connection lâu.
+	dbManager := postgres.NewDatabaseManager(authPool)
+
+	subscriber, err := rabbitmq.NewSubscriber(rabbitConn, dbManager)
 	if err != nil {
 		rabbitConn.Close()
 		redisClient.Close()
@@ -107,13 +114,14 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	router.Get("/auth/health", healthHandler(authPool, redisClient, rabbitConn, controlClient))
 
 	return &App{
-		Router:       router,
-		AuthPool:     authPool,
-		RedisClient:  redisClient,
-		RabbitConn:   rabbitConn,
-		Subscriber:   subscriber,
-		ControlPlane: controlClient,
-		controlConn:  controlConn,
+		Router:          router,
+		AuthPool:        authPool,
+		RedisClient:     redisClient,
+		RabbitConn:      rabbitConn,
+		Subscriber:      subscriber,
+		ControlPlane:    controlClient,
+		DatabaseManager: dbManager,
+		controlConn:     controlConn,
 	}, nil
 }
 

@@ -56,7 +56,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	fieldRepo := postgres.NewFieldRepo(pool)
 	moduleRepo := postgres.NewModuleRepo(pool)
 
-	getProject := usecase.NewGetProject(projectRepo)
+	getProject := usecase.NewGetProject(projectRepo, publisher)
 	getProjectConfig := usecase.NewGetProjectConfig(projectRepo, entityRepo, fieldRepo, moduleRepo)
 
 	h := handler.New(
