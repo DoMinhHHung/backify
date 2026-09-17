@@ -4,8 +4,19 @@ package control.v1;
 
 option go_package = "backify/pkg/proto/control/v1;controlv1";
 
+// ControlPlaneService provides project metadata and full config to other services.
+// Auth Service and (later) Runtime consume this API.
+// Proto3 + careful field numbers → backward compatible.
+//
+// Failures use standard gRPC status codes, not an in-band error field:
+// NotFound when the project doesn't exist, InvalidArgument for a missing
+// project_id, Internal for anything else. Callers should use
+// google.golang.org/grpc/status to inspect errors.
 service ControlPlaneService {
+  // GetProject returns basic project info.
   rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+
+  // GetProjectConfig returns full config used by Auth / Runtime.
   rpc GetProjectConfig(GetProjectConfigRequest) returns (GetProjectConfigResponse);
 }
 
