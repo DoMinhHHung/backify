@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "backify/pkg/proto/auth/v1;authv1";
+
+// AuthService is consumed by Runtime (and other services) to verify access tokens.
+// Token invalidity is a normal business result — returned in-band via
+// VerifyTokenResponse.valid/error — not as a gRPC status code.
+service AuthService {
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse);
+}
+
+message VerifyTokenRequest {
+  string token = 1;
+  string expected_project_id = 2;
+}
+
+message VerifyTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string project_id = 3;
+  string email = 4;
+  // Human-readable reason when valid=false. Empty when valid=true.
+  string error = 5;
+}
