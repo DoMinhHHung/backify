@@ -15,10 +15,11 @@ type VerifyTokenInput struct {
 // VerifyTokenOutput Valid=false là kết quả bình thường (không phải lỗi RPC).
 // Execute chỉ trả error khi hạ tầng hỏng (ví dụ Redis không kết nối được).
 type VerifyTokenOutput struct {
-	Valid  bool
-	UserID string
-	Email  string
-	Error  string // mô tả lý do invalid khi Valid=false
+	Valid     bool
+	UserID    string
+	ProjectID string
+	Email     string
+	Error     string // mô tả lý do invalid khi Valid=false
 }
 
 // VerifyToken usecase kiểm tra chữ ký + hạn + project + blacklist.
@@ -56,8 +57,9 @@ func (uc *VerifyToken) Execute(ctx context.Context, in VerifyTokenInput) (*Verif
 	}
 
 	return &VerifyTokenOutput{
-		Valid:  true,
-		UserID: claims.Sub,
-		Email:  claims.Email,
+		Valid:     true,
+		UserID:    claims.Sub,
+		ProjectID: claims.PID,
+		Email:     claims.Email,
 	}, nil
 }
