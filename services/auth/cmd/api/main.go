@@ -33,6 +33,12 @@ func main() {
 		RedisURL:             envOr("REDIS_URL", "redis://localhost:6379/0"),
 		RabbitMQURL:          envOr("RABBITMQ_URL", "amqp://backify:backify@localhost:5672/"),
 		ControlPlaneGRPCAddr: envOr("CONTROL_PLANE_GRPC_ADDR", "localhost:9091"),
+		// Không có default cho JWT_SECRET như các biến khác — một secret mặc
+		// định tiện cho local dev cũng là một secret đoán được, tức là
+		// service "chạy được" ở production với chữ ký JWT ai cũng giả mạo
+		// được. app.New (qua jwt.NewIssuer/NewVerifier) sẽ trả lỗi rõ ràng
+		// nếu JWT_SECRET rỗng, chặn ngay ở startup thay vì âm thầm ký sai.
+		JWTSecret: os.Getenv("JWT_SECRET"),
 	})
 	cancel()
 	if err != nil {
