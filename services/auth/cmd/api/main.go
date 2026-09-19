@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	app "backify/services/auth/internal"
+	authgrpc "backify/services/auth/internal/grpc"
 )
 
 func main() {
@@ -26,6 +27,7 @@ func main() {
 	_ = godotenv.Load()
 
 	port := envOr("PORT", "8081")
+	grpcAddr := envOr("AUTH_GRPC_ADDR", ":9092")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	application, err := app.New(ctx, app.Config{
@@ -61,6 +63,18 @@ func main() {
 		}
 	}()
 
+	grpcListener, err := authgrpc.Listen(grpcAddr)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to open gRPC listener")
+	}
+	grpcServer := authgrpc.NewGRPCServer(authgrpc.NewServer(application.VerifyToken))
+	go func() {
+		log.Info().Str("addr", grpcAddr).Msg("auth gRPC starting")
+		if err := grpcServer.Serve(grpcListener); err != nil {
+			log.Fatal().Err(err).Msg("gRPC server failed")
+		}
+	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -69,6 +83,19 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
+
+	// GracefulStop gRPC trước HTTP (pattern control-plane).
+	grpcStopped := make(chan struct{})
+	go func() {
+		grpcServer.GracefulStop()
+		close(grpcStopped)
+	}()
+	select {
+	case <-grpcStopped:
+	case <-time.After(10 * time.Second):
+		log.Warn().Msg("gRPC graceful stop timed out, forcing stop")
+		grpcServer.Stop()
+	}
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Fatal().Err(err).Msg("graceful shutdown failed")
