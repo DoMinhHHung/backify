@@ -51,7 +51,7 @@ class RabbitMQEventPublisher:
         await self._exchange.publish(message, routing_key=event.event_type.value)
         logger.info(
             "event_published",
-            event=event.event_type.value,
+            event_type=event.event_type.value,
             project_id=str(event.project_id),
             slug=event.slug,
         )

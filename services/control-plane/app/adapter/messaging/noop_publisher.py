@@ -15,7 +15,7 @@ class NoopEventPublisher:
     async def publish(self, event: ProjectEvent) -> None:
         logger.info(
             "event_published_noop",
-            event=event.event_type.value,
+            event_type=event.event_type.value,
             project_id=str(event.project_id),
             slug=event.slug,
         )
