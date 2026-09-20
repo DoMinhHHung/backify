@@ -23,6 +23,10 @@ def register_error_handlers(app: FastAPI) -> None:
             "INVALID_PROJECT_NAME": 400,
             "INVALID_FIELD_NAME": 400,
             "INVALID_ENTITY_NAME": 400,
+            "DEVELOPER_ALREADY_EXISTS": 409,
+            "INVALID_CREDENTIALS": 401,
+            "UNAUTHORIZED": 401,
+            "FORBIDDEN": 403,
         }
         status_code = status_map.get(exc.code, 400)
         return JSONResponse(

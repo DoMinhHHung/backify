@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 from app.domain.errors import ProjectSlugExistsError
 from app.domain.events import ProjectEvent
@@ -11,6 +12,7 @@ from app.port.project_repository import ProjectRepository
 class CreateProjectInput:
     name: str
     slug: str
+    owner_id: UUID
 
 
 @dataclass(frozen=True)
@@ -31,7 +33,11 @@ class CreateProject:
         if await self._project_repository.exists_by_slug(input_data.slug):
             raise ProjectSlugExistsError(input_data.slug)
 
-        project = Project.create(name=input_data.name, slug=input_data.slug)
+        project = Project.create(
+            name=input_data.name,
+            slug=input_data.slug,
+            owner_id=input_data.owner_id,
+        )
         await self._project_repository.save(project)
         await self._event_publisher.publish(
             ProjectEvent.created(project.id, project.slug, project.schema_name)

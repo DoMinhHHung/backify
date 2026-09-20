@@ -40,6 +40,7 @@ class Project:
         slug: str,
         *,
         project_id: UUID | None = None,
+        owner_id: UUID | None = None,
         entities: dict[str, Entity] | None = None,
         modules: dict[ModuleName, ModuleConfig] | None = None,
     ) -> None:
@@ -47,6 +48,7 @@ class Project:
         if not name or not name.strip():
             raise InvalidProjectNameError("project name must not be empty")
         self.id = project_id or uuid4()
+        self.owner_id = owner_id
         self.name = name.strip()
         self.slug = slug
         self.schema_name = f"proj_{slug.replace('-', '_')}"
@@ -162,6 +164,7 @@ class Project:
     def to_dict(self) -> dict[str, object]:
         return {
             "id": str(self.id),
+            "ownerId": str(self.owner_id) if self.owner_id else None,
             "name": self.name,
             "slug": self.slug,
             "schema": self.schema_name,
@@ -193,6 +196,7 @@ class Project:
         name: str,
         slug: str,
         config: dict[str, object],
+        owner_id: UUID | None = None,
     ) -> Self:
         entities: dict[str, Entity] = {}
         raw_entities = config.get("entities", {})
@@ -216,13 +220,14 @@ class Project:
             name=name,
             slug=slug,
             project_id=project_id,
+            owner_id=owner_id,
             entities=entities,
             modules=modules,
         )
 
     @classmethod
-    def create(cls, name: str, slug: str) -> Self:
-        project = cls(name=name, slug=slug)
+    def create(cls, name: str, slug: str, owner_id: UUID) -> Self:
+        project = cls(name=name, slug=slug, owner_id=owner_id)
         project.add_entity(Entity.user_with_default_pool())
         project.enable_module(ModuleConfig.default_auth())
         return project

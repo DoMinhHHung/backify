@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from app.adapter.http.error_handlers import register_error_handlers
-from app.adapter.http.routers import projects_router
+from app.adapter.http.routers import auth_router, projects_router
 from app.adapter.messaging.noop_publisher import NoopEventPublisher
 from app.adapter.messaging.rabbitmq_publisher import RabbitMQEventPublisher
 from app.adapter.postgres.connection import Database
@@ -82,6 +82,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Backify Control Plane", lifespan=lifespan)
 register_error_handlers(app)
+app.include_router(auth_router)
 app.include_router(projects_router)
 
 

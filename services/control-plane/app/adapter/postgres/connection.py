@@ -1,5 +1,4 @@
 from typing import Any
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import asyncpg
 import structlog
@@ -7,15 +6,6 @@ import structlog
 from app.config import Settings
 
 logger = structlog.get_logger()
-
-
-def _clean_dsn(dsn: str) -> str:
-    parsed = urlparse(dsn)
-    query = parse_qs(parsed.query)
-    query.pop("sslmode", None)
-    query.pop("ssl", None)
-    clean_query = urlencode({k: v[0] for k, v in query.items()}) if query else ""
-    return urlunparse(parsed._replace(query=clean_query))
 
 
 class Database:
@@ -32,12 +22,11 @@ class Database:
     async def connect(self) -> None:
         if self._pool is not None:
             return
-        dsn = _clean_dsn(self._settings.database_url)
         self._pool = await asyncpg.create_pool(
-            dsn=dsn,
+            dsn=self._settings.database_url,
             min_size=self._settings.database_pool_min_size,
             max_size=self._settings.database_pool_max_size,
-            ssl="require",
+            statement_cache_size=0,
         )
         async with self._pool.acquire() as conn:
             await conn.fetchval("SELECT 1")

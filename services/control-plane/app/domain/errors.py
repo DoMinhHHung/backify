@@ -90,3 +90,26 @@ class InvalidEntityNameError(DomainError):
 class InvalidProjectNameError(DomainError):
     def __init__(self, message: str) -> None:
         super().__init__("INVALID_PROJECT_NAME", message)
+
+
+class DeveloperAlreadyExistsError(DomainError):
+    def __init__(self, email: str) -> None:
+        super().__init__(
+            "DEVELOPER_ALREADY_EXISTS",
+            f"developer with email '{email}' already exists",
+        )
+
+
+class InvalidCredentialsError(DomainError):
+    def __init__(self) -> None:
+        super().__init__("INVALID_CREDENTIALS", "invalid email or password")
+
+
+class UnauthorizedError(DomainError):
+    def __init__(self, message: str = "unauthorized") -> None:
+        super().__init__("UNAUTHORIZED", message)
+
+
+class ForbiddenError(DomainError):
+    def __init__(self, message: str = "forbidden") -> None:
+        super().__init__("FORBIDDEN", message)

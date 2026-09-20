@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.domain.entity import Entity
-from app.domain.errors import ProjectNotFoundError
+from app.domain.errors import ForbiddenError, ProjectNotFoundError
 from app.domain.events import ProjectEvent
 from app.domain.project import Project
 from app.port.event_publisher import EventPublisher
@@ -12,6 +12,7 @@ from app.port.project_repository import ProjectRepository
 @dataclass(frozen=True)
 class AddEntityInput:
     project_id: UUID
+    owner_id: UUID
     name: str
 
 
@@ -33,6 +34,8 @@ class AddEntity:
         project = await self._project_repository.get_by_id(input_data.project_id)
         if project is None:
             raise ProjectNotFoundError(str(input_data.project_id))
+        if project.owner_id != input_data.owner_id:
+            raise ForbiddenError("you do not own this project")
 
         entity = Entity(input_data.name)
         project.add_entity(entity)

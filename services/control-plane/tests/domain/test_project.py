@@ -12,10 +12,11 @@ from app.domain.errors import (
 from app.domain.field import Field, FieldType
 from app.domain.module import FunctionName, ModuleName
 from app.domain.project import Project
+from uuid import uuid4
 
 
 def test_create_project_success():
-    project = Project.create("My Shop", "my-shop")
+    project = Project.create("My Shop", "my-shop", owner_id=uuid4())
     assert project.name == "My Shop"
     assert project.slug == "my-shop"
     assert project.schema_name == "proj_my_shop"
