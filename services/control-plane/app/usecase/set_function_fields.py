@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.domain.errors import ProjectNotFoundError
+from app.domain.events import ProjectEvent
 from app.domain.module import FunctionName, ModuleName
 from app.domain.project import Project
+from app.port.event_publisher import EventPublisher
 from app.port.project_repository import ProjectRepository
 
 
@@ -21,8 +23,13 @@ class SetFunctionFieldsOutput:
 
 
 class SetFunctionFields:
-    def __init__(self, project_repository: ProjectRepository) -> None:
+    def __init__(
+        self,
+        project_repository: ProjectRepository,
+        event_publisher: EventPublisher,
+    ) -> None:
         self._project_repository = project_repository
+        self._event_publisher = event_publisher
 
     async def execute(
         self, input_data: SetFunctionFieldsInput
@@ -37,4 +44,7 @@ class SetFunctionFields:
             input_data.field_names,
         )
         await self._project_repository.save(project)
+        await self._event_publisher.publish(
+            ProjectEvent.config_updated(project.id, project.slug, project.schema_name)
+        )
         return SetFunctionFieldsOutput(project=project)

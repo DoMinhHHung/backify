@@ -10,6 +10,7 @@ from app.adapter.http.dependencies import (
     get_get_project,
     get_remove_field,
     get_set_function_fields,
+    get_delete_project,
 )
 from app.adapter.http.schemas import (
     AddEntityRequest,
@@ -17,6 +18,8 @@ from app.adapter.http.schemas import (
     CreateProjectRequest,
     ProjectResponse,
     SetFunctionFieldsRequest,
+    DeleteProject, 
+    DeleteProjectInput,
 )
 from app.domain.module import FunctionName, ModuleName
 from app.usecase.add_entity import AddEntity, AddEntityInput
@@ -54,6 +57,16 @@ async def get_project(
 ) -> ProjectResponse:
     result = await usecase.execute(GetProjectInput(project_id=project_id))
     return ProjectResponse.from_domain(result.project)
+
+@router.delete(
+    "/{project_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_project(
+    project_id: UUID,
+    usecase: Annotated[DeleteProject, Depends(get_delete_project)],
+) -> None:
+    await usecase.execute(DeleteProjectInput(project_id=project_id))
 
 
 @router.post(

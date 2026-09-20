@@ -3,25 +3,16 @@ from uuid import UUID
 
 from app.domain.errors import ProjectNotFoundError
 from app.domain.events import ProjectEvent
-from app.domain.project import Project
 from app.port.event_publisher import EventPublisher
 from app.port.project_repository import ProjectRepository
 
 
 @dataclass(frozen=True)
-class RemoveFieldInput:
+class DeleteProjectInput:
     project_id: UUID
-    entity_name: str
-    field_name: str
-    force: bool = False
 
 
-@dataclass(frozen=True)
-class RemoveFieldOutput:
-    project: Project
-
-
-class RemoveField:
+class DeleteProject:
     def __init__(
         self,
         project_repository: ProjectRepository,
@@ -30,18 +21,15 @@ class RemoveField:
         self._project_repository = project_repository
         self._event_publisher = event_publisher
 
-    async def execute(self, input_data: RemoveFieldInput) -> RemoveFieldOutput:
+    async def execute(self, input_data: DeleteProjectInput) -> None:
         project = await self._project_repository.get_by_id(input_data.project_id)
         if project is None:
             raise ProjectNotFoundError(str(input_data.project_id))
 
-        project.remove_field_from_entity(
-            input_data.entity_name,
-            input_data.field_name,
-            force=input_data.force,
-        )
-        await self._project_repository.save(project)
+        deleted = await self._project_repository.delete(project.id)
+        if not deleted:
+            raise ProjectNotFoundError(str(input_data.project_id))
+
         await self._event_publisher.publish(
-            ProjectEvent.config_updated(project.id, project.slug, project.schema_name)
+            ProjectEvent.deleted(project.id, project.slug, project.schema_name)
         )
-        return RemoveFieldOutput(project=project)

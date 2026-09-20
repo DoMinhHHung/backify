@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     log_json: bool = True
 
     rabbitmq_url: str = "amqp://backify:backify@localhost:5672/"
+    rabbitmq_enabled: bool = False
+
+    jwt_secret: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24
 
 
 @lru_cache

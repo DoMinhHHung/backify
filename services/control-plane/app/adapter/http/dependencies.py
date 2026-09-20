@@ -49,3 +49,8 @@ def get_set_function_fields(
     container: Annotated[Container, Depends(get_container)],
 ) -> SetFunctionFields:
     return container.set_function_fields
+
+def get_delete_project(
+    container: Annotated[Container, Depends(get_container)],
+) -> DeleteProject:
+    return container.delete_project

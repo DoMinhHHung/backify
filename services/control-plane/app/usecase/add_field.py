@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.domain.errors import ProjectNotFoundError
+from app.domain.events import ProjectEvent
 from app.domain.field import Field, FieldType
 from app.domain.project import Project
+from app.port.event_publisher import EventPublisher
 from app.port.project_repository import ProjectRepository
 
 
@@ -24,8 +26,13 @@ class AddFieldOutput:
 
 
 class AddField:
-    def __init__(self, project_repository: ProjectRepository) -> None:
+    def __init__(
+        self,
+        project_repository: ProjectRepository,
+        event_publisher: EventPublisher,
+    ) -> None:
         self._project_repository = project_repository
+        self._event_publisher = event_publisher
 
     async def execute(self, input_data: AddFieldInput) -> AddFieldOutput:
         project = await self._project_repository.get_by_id(input_data.project_id)
@@ -41,4 +48,7 @@ class AddField:
         )
         project.add_field_to_entity(input_data.entity_name, field)
         await self._project_repository.save(project)
+        await self._event_publisher.publish(
+            ProjectEvent.config_updated(project.id, project.slug, project.schema_name)
+        )
         return AddFieldOutput(project=project)

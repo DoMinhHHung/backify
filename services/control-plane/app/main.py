@@ -7,6 +7,8 @@ from fastapi.responses import JSONResponse
 
 from app.adapter.http.error_handlers import register_error_handlers
 from app.adapter.http.routers import projects_router
+from app.adapter.messaging.noop_publisher import NoopEventPublisher
+from app.adapter.messaging.rabbitmq_publisher import RabbitMQEventPublisher
 from app.adapter.postgres.connection import Database
 from app.config import get_settings
 from app.container import Container
@@ -47,18 +49,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         host=settings.app_host,
         port=settings.app_port,
     )
+
     database = Database(settings)
+    if settings.rabbitmq_enabled:
+        event_publisher = RabbitMQEventPublisher(settings)
+    else:
+        event_publisher = NoopEventPublisher()
+
     try:
         await database.connect()
-        container = Container(settings, database)
+        await event_publisher.connect()
+        container = Container(settings, database, event_publisher)
         app.state.container = container
         app.state.db = database
+        app.state.event_publisher = event_publisher
         logger.info("db_connected")
     except Exception as exc:
-        logger.error("db_connect_failed", error=str(exc))
+        logger.error("startup_failed", error=str(exc))
         app.state.db = None
         app.state.container = None
+        app.state.event_publisher = None
     yield
+
+    publisher = getattr(app.state, "event_publisher", None)
+    if publisher is not None:
+        await publisher.disconnect()
     db = getattr(app.state, "db", None)
     if db is not None:
         await db.disconnect()

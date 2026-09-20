@@ -63,6 +63,13 @@ class PostgresProjectRepository(ProjectRepository):
         )
         return bool(value)
 
+    async def delete(self, project_id: UUID) -> bool:
+        result = await self._db.execute(
+            "DELETE FROM control.projects WHERE id = $1",
+            project_id,
+        )
+        return result == "DELETE 1"
+
     def _row_to_project(self, row: object) -> Project:
         config = row["config"]
         if isinstance(config, str):
