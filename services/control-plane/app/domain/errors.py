@@ -20,6 +20,14 @@ class EntityNotFoundError(DomainError):
         super().__init__("ENTITY_NOT_FOUND", f"entity '{entity_name}' not found")
 
 
+class EntityAlreadyExistsError(DomainError):
+    def __init__(self, entity_name: str) -> None:
+        super().__init__(
+            "ENTITY_ALREADY_EXISTS",
+            f"entity '{entity_name}' already exists",
+        )
+
+
 class FieldNotFoundError(DomainError):
     def __init__(self, field_name: str) -> None:
         super().__init__("FIELD_NOT_FOUND", f"field '{field_name}' not found")
