@@ -1,0 +1,14 @@
+from typing import Protocol
+from uuid import UUID
+
+from app.domain.project import Project
+
+
+class ProjectRepository(Protocol):
+    async def save(self, project: Project) -> None: ...
+
+    async def get_by_id(self, project_id: UUID) -> Project | None: ...
+
+    async def get_by_slug(self, slug: str) -> Project | None: ...
+
+    async def exists_by_slug(self, slug: str) -> bool: ...
