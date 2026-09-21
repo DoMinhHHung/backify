@@ -1,23 +1,22 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import jwt
 
 from app.config import Settings
 
+_ISSUER = "backify-control-plane"
+
 
 def create_access_token(developer_id: UUID, settings: Settings) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(developer_id),
-        "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iss": _ISSUER,
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
     }
-    return jwt.encode(
-        payload,
-        settings.jwt_secret,
-        algorithm=settings.jwt_algorithm,
-    )
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def decode_access_token(token: str, settings: Settings) -> UUID:
@@ -25,8 +24,7 @@ def decode_access_token(token: str, settings: Settings) -> UUID:
         token,
         settings.jwt_secret,
         algorithms=[settings.jwt_algorithm],
+        issuer=_ISSUER,
+        options={"require": ["exp", "iat", "sub", "iss"]},
     )
-    sub = payload.get("sub")
-    if not sub:
-        raise ValueError("missing sub")
-    return UUID(str(sub))
+    return UUID(str(payload["sub"]))

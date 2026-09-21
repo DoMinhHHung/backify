@@ -17,8 +17,9 @@ class ListProjectsOutput:
 
 class ListProjects:
     def __init__(self, project_repository: ProjectRepository) -> None:
-        self._project_repository = project_repository
+        self._projects = project_repository
 
     async def execute(self, input_data: ListProjectsInput) -> ListProjectsOutput:
-        projects = await self._project_repository.list_by_owner(input_data.owner_id)
-        return ListProjectsOutput(projects=projects)
+        return ListProjectsOutput(
+            projects=await self._projects.list_by_owner(input_data.owner_id)
+        )

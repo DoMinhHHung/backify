@@ -15,6 +15,14 @@ class ProjectSlugExistsError(DomainError):
         super().__init__("PROJECT_SLUG_EXISTS", f"slug '{slug}' already exists")
 
 
+class ConcurrentModificationError(DomainError):
+    def __init__(self, project_id: str) -> None:
+        super().__init__(
+            "CONCURRENT_MODIFICATION",
+            f"project '{project_id}' was modified by another request, retry",
+        )
+
+
 class EntityNotFoundError(DomainError):
     def __init__(self, entity_name: str) -> None:
         super().__init__("ENTITY_NOT_FOUND", f"entity '{entity_name}' not found")
@@ -52,6 +60,11 @@ class FieldInUseError(DomainError):
             "FIELD_IN_USE",
             f"field '{field_name}' is enabled in one or more functions; use force=true",
         )
+
+
+class InvalidFieldConfigError(DomainError):
+    def __init__(self, message: str) -> None:
+        super().__init__("INVALID_FIELD_CONFIG", message)
 
 
 class ModuleNotFoundError(DomainError):

@@ -4,8 +4,9 @@ from uuid import UUID
 from app.domain.errors import ProjectSlugExistsError
 from app.domain.events import ProjectEvent
 from app.domain.project import Project
-from app.port.event_publisher import EventPublisher
+from app.port.outbox_repository import OutboxRepository
 from app.port.project_repository import ProjectRepository
+from app.port.transaction import TransactionManager
 
 
 @dataclass(frozen=True)
@@ -24,13 +25,15 @@ class CreateProject:
     def __init__(
         self,
         project_repository: ProjectRepository,
-        event_publisher: EventPublisher,
+        outbox: OutboxRepository,
+        tx: TransactionManager,
     ) -> None:
-        self._project_repository = project_repository
-        self._event_publisher = event_publisher
+        self._projects = project_repository
+        self._outbox = outbox
+        self._tx = tx
 
     async def execute(self, input_data: CreateProjectInput) -> CreateProjectOutput:
-        if await self._project_repository.exists_by_slug(input_data.slug):
+        if await self._projects.exists_by_slug(input_data.slug):
             raise ProjectSlugExistsError(input_data.slug)
 
         project = Project.create(
@@ -38,8 +41,10 @@ class CreateProject:
             slug=input_data.slug,
             owner_id=input_data.owner_id,
         )
-        await self._project_repository.save(project)
-        await self._event_publisher.publish(
-            ProjectEvent.created(project.id, project.slug, project.schema_name)
-        )
+        async with self._tx.transaction() as conn:
+            await self._projects.create(project, conn)
+            await self._outbox.add(
+                ProjectEvent.created(project.id, project.slug, project.schema_name),
+                conn,
+            )
         return CreateProjectOutput(project=project)

@@ -1,3 +1,4 @@
+import re
 from typing import Self
 
 from app.domain.errors import (
@@ -8,18 +9,30 @@ from app.domain.errors import (
 )
 from app.domain.field import Field
 
+_ENTITY_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
+_ENTITY_NAME_MAX = 48
+
 
 class Entity:
     def __init__(self, name: str, fields: list[Field] | None = None) -> None:
-        if not name or not name[0].isalpha() or not name.replace("_", "").isalnum():
-            raise InvalidEntityNameError(
-                f"invalid entity name '{name}': must start with letter, only [a-zA-Z0-9_]"
-            )
+        self._validate_name(name)
         self.name = name
         self._fields: dict[str, Field] = {}
         if fields:
             for field in fields:
                 self.add_field(field)
+
+    @staticmethod
+    def _validate_name(name: str) -> None:
+        if not name or not _ENTITY_NAME_PATTERN.match(name):
+            raise InvalidEntityNameError(
+                f"invalid entity name '{name}': must start with a letter and "
+                "contain only [A-Za-z0-9_]"
+            )
+        if len(name) > _ENTITY_NAME_MAX:
+            raise InvalidEntityNameError(
+                f"entity name '{name}' exceeds {_ENTITY_NAME_MAX} characters"
+            )
 
     @property
     def fields(self) -> list[Field]:

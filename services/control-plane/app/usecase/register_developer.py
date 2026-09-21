@@ -20,19 +20,19 @@ class RegisterDeveloperOutput:
 
 class RegisterDeveloper:
     def __init__(self, developer_repository: DeveloperRepository) -> None:
-        self._developer_repository = developer_repository
+        self._developers = developer_repository
 
     async def execute(
         self, input_data: RegisterDeveloperInput
     ) -> RegisterDeveloperOutput:
         email = input_data.email.strip().lower()
-        if await self._developer_repository.exists_by_email(email):
+        if await self._developers.exists_by_email(email):
             raise DeveloperAlreadyExistsError(email)
 
         developer = Developer.create(
             email=email,
-            password_hash=hash_password(input_data.password),
+            password_hash=await hash_password(input_data.password),
             name=input_data.name,
         )
-        await self._developer_repository.save(developer)
+        await self._developers.create(developer)
         return RegisterDeveloperOutput(developer=developer)

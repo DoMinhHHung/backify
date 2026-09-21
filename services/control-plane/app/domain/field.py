@@ -1,8 +1,8 @@
+import re
 from enum import StrEnum
 from typing import Self
-import re
 
-from app.domain.errors import InvalidFieldNameError
+from app.domain.errors import InvalidFieldConfigError, InvalidFieldNameError
 
 
 class FieldType(StrEnum):
@@ -22,8 +22,19 @@ class RelationCardinality(StrEnum):
     ONE_TO_MANY = "1-n"
     MANY_TO_ONE = "n-1"
 
+    @classmethod
+    def parse(cls, raw: str) -> "RelationCardinality":
+        try:
+            return cls(raw)
+        except ValueError:
+            allowed = ", ".join(c.value for c in cls)
+            raise InvalidFieldConfigError(
+                f"invalid relation cardinality '{raw}': allowed values are {allowed}"
+            ) from None
+
 
 _FIELD_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
+_FIELD_NAME_MAX = 63
 
 
 class Field:
@@ -41,17 +52,27 @@ class Field:
     ) -> None:
         self._validate_name(name)
         if field_type == FieldType.ENUM and not enum_values:
-            raise ValueError("enum field requires enum_values")
+            raise InvalidFieldConfigError(
+                f"field '{name}': enum type requires a non-empty enumValues list"
+            )
         if field_type != FieldType.ENUM and enum_values is not None:
-            raise ValueError("enum_values only allowed for enum type")
+            raise InvalidFieldConfigError(
+                f"field '{name}': enumValues is only allowed for enum type"
+            )
         if field_type == FieldType.RELATION:
             if not relation_to:
-                raise ValueError("relation field requires relation_to")
+                raise InvalidFieldConfigError(
+                    f"field '{name}': relation type requires relationTo"
+                )
             if relation_cardinality is None:
-                raise ValueError("relation field requires relation_cardinality")
-        if field_type != FieldType.RELATION:
-            if relation_to is not None or relation_cardinality is not None:
-                raise ValueError("relation_to/cardinality only allowed for relation type")
+                raise InvalidFieldConfigError(
+                    f"field '{name}': relation type requires relationCardinality"
+                )
+        elif relation_to is not None or relation_cardinality is not None:
+            raise InvalidFieldConfigError(
+                f"field '{name}': relationTo/relationCardinality are only "
+                "allowed for relation type"
+            )
         self.name = name
         self.field_type = field_type
         self.required = required
@@ -65,8 +86,12 @@ class Field:
     def _validate_name(name: str) -> None:
         if not name or not _FIELD_NAME_PATTERN.match(name):
             raise InvalidFieldNameError(
-                f"invalid field name '{name}': must start with letter, "
-                "only [a-zA-Z0-9_], non-empty"
+                f"invalid field name '{name}': must start with a letter and "
+                "contain only [a-zA-Z0-9_]"
+            )
+        if len(name) > _FIELD_NAME_MAX:
+            raise InvalidFieldNameError(
+                f"field name '{name}' exceeds {_FIELD_NAME_MAX} characters"
             )
 
     def to_dict(self) -> dict[str, object]:
@@ -91,9 +116,11 @@ class Field:
     def from_dict(cls, data: dict[str, object]) -> Self:
         enum_values = data.get("enumValues")
         cardinality_raw = data.get("relationCardinality")
-        cardinality = None
-        if cardinality_raw is not None:
-            cardinality = RelationCardinality(str(cardinality_raw))
+        cardinality = (
+            RelationCardinality.parse(str(cardinality_raw))
+            if cardinality_raw is not None
+            else None
+        )
         relation_to = data.get("relationTo")
         return cls(
             name=str(data["name"]),

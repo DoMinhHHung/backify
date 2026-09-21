@@ -1,38 +1,41 @@
+import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import structlog
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.adapter.http.error_handlers import register_error_handlers
+from app.adapter.http.middleware import RequestContextMiddleware
 from app.adapter.http.routers import auth_router, projects_router
 from app.adapter.messaging.noop_publisher import NoopEventPublisher
+from app.adapter.messaging.outbox_relay import OutboxRelay
 from app.adapter.messaging.rabbitmq_publisher import RabbitMQEventPublisher
 from app.adapter.postgres.connection import Database
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.container import Container
 
 logger = structlog.get_logger()
 
 
-def configure_logging() -> None:
-    settings = get_settings()
+def configure_logging(settings: Settings) -> None:
+    level = logging.getLevelNamesMapping().get(settings.log_level.upper(), logging.INFO)
     processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
     ]
-    if settings.log_json:
-        processors.append(structlog.processors.JSONRenderer())
-    else:
-        processors.append(structlog.dev.ConsoleRenderer())
+    processors.append(
+        structlog.processors.JSONRenderer()
+        if settings.log_json
+        else structlog.dev.ConsoleRenderer()
+    )
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(structlog.stdlib, settings.log_level.upper(), 20)
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(level),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=True,
@@ -41,60 +44,83 @@ def configure_logging() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    configure_logging()
     settings = get_settings()
-    logger.info(
-        "app_starting",
-        env=settings.app_env,
-        host=settings.app_host,
-        port=settings.app_port,
-    )
+    configure_logging(settings)
+    logger.info("app_starting", env=settings.app_env, port=settings.app_port)
 
     database = Database(settings)
-    if settings.rabbitmq_enabled:
-        event_publisher = RabbitMQEventPublisher(settings)
-    else:
-        event_publisher = NoopEventPublisher()
+    publisher = (
+        RabbitMQEventPublisher(settings)
+        if settings.rabbitmq_enabled
+        else NoopEventPublisher()
+    )
+    relay = OutboxRelay(
+        database,
+        publisher,
+        poll_interval=settings.outbox_poll_interval,
+        batch_size=settings.outbox_batch_size,
+    )
 
     try:
         await database.connect()
-        await event_publisher.connect()
-        container = Container(settings, database, event_publisher)
-        app.state.container = container
-        app.state.db = database
-        app.state.event_publisher = event_publisher
-        logger.info("db_connected")
-    except Exception as exc:
-        logger.error("startup_failed", error=str(exc))
-        app.state.db = None
-        app.state.container = None
-        app.state.event_publisher = None
-    yield
-
-    publisher = getattr(app.state, "event_publisher", None)
-    if publisher is not None:
+        await publisher.connect()
+        await relay.start()
+    except Exception:
+        await relay.stop()
         await publisher.disconnect()
-    db = getattr(app.state, "db", None)
-    if db is not None:
-        await db.disconnect()
-    logger.info("app_stopped")
+        await database.disconnect()
+        logger.error("startup_failed")
+        raise
+
+    app.state.settings = settings
+    app.state.db = database
+    app.state.container = Container.from_database(settings, database)
+    app.state.relay = relay
+    logger.info("app_started")
+
+    try:
+        yield
+    finally:
+        await relay.stop()
+        await publisher.disconnect()
+        await database.disconnect()
+        logger.info("app_stopped")
 
 
-app = FastAPI(title="Backify Control Plane", lifespan=lifespan)
-register_error_handlers(app)
-app.include_router(auth_router)
-app.include_router(projects_router)
-
-
-@app.get("/health")
-async def health() -> JSONResponse:
-    db_status = "error"
-    db = getattr(app.state, "db", None)
-    if db is not None:
-        ok = await db.health_check()
-        db_status = "ok" if ok else "error"
-    status = "ok" if db_status == "ok" else "degraded"
-    return JSONResponse(
-        status_code=200 if db_status == "ok" else 503,
-        content={"status": status, "db": db_status},
+def create_app() -> FastAPI:
+    settings = get_settings()
+    application = FastAPI(
+        title="Backify Control Plane",
+        version="0.1.0",
+        lifespan=lifespan,
+        docs_url=None if settings.is_production else "/docs",
+        redoc_url=None,
     )
+    application.add_middleware(RequestContextMiddleware)
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    )
+    register_error_handlers(application)
+    application.include_router(auth_router)
+    application.include_router(projects_router)
+
+    @application.get("/health", tags=["internal"])
+    async def health() -> JSONResponse:
+        database = getattr(application.state, "db", None)
+        db_ok = await database.health_check() if database is not None else False
+        return JSONResponse(
+            status_code=200 if db_ok else 503,
+            content={
+                "status": "ok" if db_ok else "degraded",
+                "db": "ok" if db_ok else "error",
+            },
+        )
+
+    return application
+
+
+app = create_app()
