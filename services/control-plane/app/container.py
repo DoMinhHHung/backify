@@ -14,6 +14,7 @@ from app.usecase.delete_project import DeleteProject
 from app.usecase.enable_module import EnableModule
 from app.usecase.get_project import GetProject
 from app.usecase.get_project_config import GetProjectConfig
+from app.usecase.get_project_internal import GetProjectInternal
 from app.usecase.list_projects import ListProjects
 from app.usecase.login_developer import LoginDeveloper
 from app.usecase.register_developer import RegisterDeveloper
@@ -59,6 +60,7 @@ class Container:
         self.enable_module = EnableModule(*mutation_args)
         self.get_project = GetProject(self._projects)
         self.get_project_config = GetProjectConfig(self._projects)
+        self.get_project_internal = GetProjectInternal(self._projects)
         self.list_projects = ListProjects(self._projects)
         self.register_developer = RegisterDeveloper(self._developers)
         self.login_developer = LoginDeveloper(self._developers, self._settings)

@@ -15,6 +15,8 @@ dependencies = [
     "bcrypt>=4.2.0",
     "alembic>=1.14.0",
     "sqlalchemy[asyncio]>=2.0.36",
+    "grpcio>=1.68.0",
+    "protobuf>=5.28.0",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +26,7 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
     "httpx>=0.28.0",
+    "grpcio-tools>=1.68.0",
 ]
 
 [build-system]
@@ -37,15 +40,20 @@ packages = ["app"]
 target-version = "py312"
 line-length = 90
 src = ["app", "tests"]
+extend-exclude = ["app/adapter/grpc/pb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "ASYNC", "S"]
 ignore = ["E501", "S104", "S105", "S106"]
 
+[tool.ruff.lint.isort]
+known-third-party = ["grpc"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S105", "S106"]
-"migrations/*" = ["N999"]
+"migrations/*" = ["N999", "S608"]
 "app/adapter/http/schemas.py" = ["N815"]
+"app/adapter/grpc/server.py" = ["N802"]  # RPC method names must match the .proto
 
 [tool.ruff.format]
 quote-style = "double"

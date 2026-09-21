@@ -5,6 +5,7 @@ from app.usecase.delete_project import DeleteProject
 from app.usecase.enable_module import EnableModule
 from app.usecase.get_project import GetProject
 from app.usecase.get_project_config import GetProjectConfig
+from app.usecase.get_project_internal import GetProjectInternal
 from app.usecase.list_projects import ListProjects
 from app.usecase.login_developer import LoginDeveloper
 from app.usecase.register_developer import RegisterDeveloper
@@ -19,6 +20,7 @@ __all__ = [
     "EnableModule",
     "GetProject",
     "GetProjectConfig",
+    "GetProjectInternal",
     "ListProjects",
     "LoginDeveloper",
     "RegisterDeveloper",
