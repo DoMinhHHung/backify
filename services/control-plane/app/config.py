@@ -40,6 +40,9 @@ class Settings(BaseSettings):
 
     internal_api_key: str = "dev-internal-key"
 
+    grpc_enabled: bool = True
+    grpc_port: int = 9091
+
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
 
     @property

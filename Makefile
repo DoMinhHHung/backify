@@ -1,7 +1,7 @@
 CP := services/control-plane
 UV := uv --directory $(CP)
 
-.PHONY: infra-up infra-down infra-logs install migrate-up migrate-down run test test-cov lint fmt clean
+.PHONY: infra-up infra-down infra-logs install migrate-up migrate-down grpc-gen run test test-cov lint fmt clean
 
 infra-up:
 	docker compose up -d --wait
@@ -20,6 +20,16 @@ migrate-up:
 
 migrate-down:
 	cd $(CP) && uv run alembic downgrade -1
+
+grpc-gen:
+	uv --directory $(CP) run python -m grpc_tools.protoc \
+		-I proto \
+		--python_out=$(CP)/app/adapter/grpc/pb \
+		--grpc_python_out=$(CP)/app/adapter/grpc/pb \
+		--pyi_out=$(CP)/app/adapter/grpc/pb \
+		proto/control_plane.proto
+	sed -i 's/^import control_plane_pb2/from . import control_plane_pb2/' \
+		$(CP)/app/adapter/grpc/pb/control_plane_pb2_grpc.py
 
 run:
 	cd $(CP) && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

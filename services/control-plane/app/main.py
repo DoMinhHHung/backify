@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.adapter.grpc.server import create_grpc_server
 from app.adapter.http.error_handlers import register_error_handlers
 from app.adapter.http.middleware import RequestContextMiddleware
 from app.adapter.http.routers import auth_router, projects_router
@@ -61,11 +62,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         batch_size=settings.outbox_batch_size,
     )
 
+    container = Container.from_database(settings, database)
+    grpc_server = (
+        create_grpc_server(container, settings) if settings.grpc_enabled else None
+    )
+
     try:
         await database.connect()
         await publisher.connect()
         await relay.start()
+        if grpc_server is not None:
+            await grpc_server.start()
+            logger.info("grpc_server_started", port=settings.grpc_port)
     except Exception:
+        if grpc_server is not None:
+            await grpc_server.stop(grace=None)
         await relay.stop()
         await publisher.disconnect()
         await database.disconnect()
@@ -74,13 +85,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.settings = settings
     app.state.db = database
-    app.state.container = Container.from_database(settings, database)
+    app.state.container = container
     app.state.relay = relay
+    app.state.grpc_server = grpc_server
     logger.info("app_started")
 
     try:
         yield
     finally:
+        if grpc_server is not None:
+            await grpc_server.stop(grace=5.0)
         await relay.stop()
         await publisher.disconnect()
         await database.disconnect()

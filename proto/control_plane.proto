@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package backify.controlplane.v1;
+
+// ControlPlaneService is the internal, service-to-service contract for
+// reading project data. It is never exposed to end users directly —
+// callers (e.g. the Auth Service) authenticate with the same shared
+// internal key used by the HTTP internal endpoints, sent as the
+// "x-internal-key" gRPC metadata entry.
+service ControlPlaneService {
+  // GetProject returns identity/ownership metadata for a project.
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+
+  // GetProjectConfig returns the full runtime config (entities + modules)
+  // for a project. Config shape is intentionally untyped (JSON) because
+  // the field/entity schema is config-driven and evolves per project
+  // without requiring a proto contract change.
+  rpc GetProjectConfig(GetProjectConfigRequest) returns (GetProjectConfigResponse);
+}
+
+message GetProjectRequest {
+  string project_id = 1;
+}
+
+message GetProjectResponse {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  string schema_name = 4;
+  string owner_id = 5;
+  int32 version = 6;
+}
+
+message GetProjectConfigRequest {
+  string project_id = 1;
+}
+
+message GetProjectConfigResponse {
+  string project_id = 1;
+  string slug = 2;
+  string schema_name = 3;
+  int32 version = 4;
+  // JSON-encoded {"entities": {...}, "modules": {...}} — same shape as
+  // Project.to_config_dict() in the control-plane domain layer.
+  string config_json = 5;
+}
