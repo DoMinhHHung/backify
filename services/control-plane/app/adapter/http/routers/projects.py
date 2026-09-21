@@ -13,6 +13,7 @@ from app.adapter.http.dependencies import (
     get_list_projects,
     get_remove_field,
     get_set_function_fields,
+    get_enable_module,
 )
 from app.adapter.http.schemas import (
     AddEntityRequest,
@@ -30,6 +31,7 @@ from app.usecase.get_project import GetProject, GetProjectInput
 from app.usecase.list_projects import ListProjects, ListProjectsInput
 from app.usecase.remove_field import RemoveField, RemoveFieldInput
 from app.usecase.set_function_fields import SetFunctionFields, SetFunctionFieldsInput
+from app.usecase.enable_module import EnableModule, EnableModuleInput
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 

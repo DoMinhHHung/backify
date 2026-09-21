@@ -15,6 +15,7 @@ from app.usecase.login_developer import LoginDeveloper
 from app.usecase.register_developer import RegisterDeveloper
 from app.usecase.remove_field import RemoveField
 from app.usecase.set_function_fields import SetFunctionFields
+from app.usecase.enable_module import EnableModule
 
 
 class Container:
@@ -49,6 +50,9 @@ class Container:
         self.register_developer = RegisterDeveloper(self._developer_repository)
         self.login_developer = LoginDeveloper(
             self._developer_repository, settings
+        )
+        self.enable_module = EnableModule(
+            self._project_repository, self._event_publisher
         )
 
     @property

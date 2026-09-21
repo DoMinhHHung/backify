@@ -19,6 +19,7 @@ from app.usecase.register_developer import RegisterDeveloper
 from app.usecase.remove_field import RemoveField
 from app.usecase.set_function_fields import SetFunctionFields
 from app.usecase.get_project_config import GetProjectConfig
+from app.usecase.enable_module import EnableModule
 
 security = HTTPBearer(auto_error=False)
 
@@ -119,3 +120,8 @@ async def verify_internal_key(
 ) -> None:
     if x_internal_key is None or x_internal_key != container.settings.internal_api_key:
         raise UnauthorizedError("invalid internal key")
+
+def get_enable_module(
+    container: Annotated[Container, Depends(get_container)],
+) -> EnableModule:
+    return container.enable_module

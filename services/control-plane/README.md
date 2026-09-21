@@ -4,7 +4,7 @@ Dashboard API for Backify — manage projects, entities, field pools, and module
 
 ## Stack
 
-- Python 3.12+ / FastAPI
+- Python / FastAPI
 - PostgreSQL (schema `control`)
 - RabbitMQ (optional, `RABBITMQ_ENABLED=false` uses noop publisher)
 - JWT for developer auth
