@@ -181,3 +181,33 @@ async def set_function_fields(
         )
     )
     return ProjectResponse.from_domain(result.project)
+
+@router.post(
+    "/{project_id}/modules/{module}/enable",
+    response_model=ProjectResponse,
+)
+async def enable_module(
+    project_id: UUID,
+    module: ModuleName,
+    owner_id: Annotated[UUID, Depends(get_current_developer_id)],
+    usecase: Annotated[EnableModule, Depends(get_enable_module)],
+) -> ProjectResponse:
+    result = await usecase.execute(
+        EnableModuleInput(
+            project_id=project_id, owner_id=owner_id, module=module
+        )
+    )
+    return ProjectResponse.from_domain(result.project)
+
+@router.get(
+    "/{project_id}/config",
+    response_model=ProjectResponse,
+    tags=["internal"],
+)
+async def get_project_config(
+    project_id: UUID,
+    _: Annotated[None, Depends(verify_internal_key)],
+    usecase: Annotated[GetProjectConfig, Depends(get_get_project_config)],
+) -> ProjectResponse:
+    result = await usecase.execute(GetProjectConfigInput(project_id=project_id))
+    return ProjectResponse.from_domain(result.project)

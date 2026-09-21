@@ -4,12 +4,17 @@ from typing import Self
 
 class ModuleName(StrEnum):
     AUTH = "auth"
+    CRUD = "crud"
 
 
 class FunctionName(StrEnum):
     SIGNUP = "signup"
     SIGNIN = "signin"
     FORGOT_PASSWORD = "forgot_password"
+    CREATE = "create"
+    READ = "read"
+    UPDATE = "update"
+    DELETE = "delete"
 
 
 class FunctionConfig:
@@ -51,10 +56,14 @@ class ModuleConfig:
         *,
         enabled: bool = False,
         functions: dict[FunctionName, FunctionConfig] | None = None,
+        entity_functions: dict[str, dict[FunctionName, FunctionConfig]] | None = None,
     ) -> None:
         self.module = module
         self.enabled = enabled
         self._functions: dict[FunctionName, FunctionConfig] = functions or {}
+        self._entity_functions: dict[str, dict[FunctionName, FunctionConfig]] = (
+            entity_functions or {}
+        )
 
     def get_function(self, function: FunctionName) -> FunctionConfig | None:
         return self._functions.get(function)
@@ -62,17 +71,46 @@ class ModuleConfig:
     def set_function(self, config: FunctionConfig) -> None:
         self._functions[config.function] = config
 
+    def get_entity_function(
+        self, entity_name: str, function: FunctionName
+    ) -> FunctionConfig | None:
+        by_entity = self._entity_functions.get(entity_name)
+        if by_entity is None:
+            return None
+        return by_entity.get(function)
+
+    def set_entity_function(
+        self, entity_name: str, config: FunctionConfig
+    ) -> None:
+        if entity_name not in self._entity_functions:
+            self._entity_functions[entity_name] = {}
+        self._entity_functions[entity_name][config.function] = config
+
     @property
     def functions(self) -> dict[FunctionName, FunctionConfig]:
         return dict(self._functions)
 
-    def to_dict(self) -> dict[str, object]:
+    @property
+    def entity_functions(self) -> dict[str, dict[FunctionName, FunctionConfig]]:
         return {
+            entity: dict(fns) for entity, fns in self._entity_functions.items()
+        }
+
+    def to_dict(self) -> dict[str, object]:
+        data: dict[str, object] = {
             "enabled": self.enabled,
             "functions": {
                 fn.value: cfg.to_dict() for fn, cfg in self._functions.items()
             },
         }
+        if self._entity_functions:
+            data["entityFunctions"] = {
+                entity: {
+                    fn.value: cfg.to_dict() for fn, cfg in fns.items()
+                }
+                for entity, fns in self._entity_functions.items()
+            }
+        return data
 
     @classmethod
     def from_dict(cls, module: ModuleName, data: dict[str, object]) -> Self:
@@ -87,7 +125,30 @@ class ModuleConfig:
                     continue
                 if isinstance(value, dict):
                     functions[fn] = FunctionConfig.from_dict(fn, value)
-        return cls(module, enabled=enabled, functions=functions)
+
+        entity_functions: dict[str, dict[FunctionName, FunctionConfig]] = {}
+        raw_entity = data.get("entityFunctions", {})
+        if isinstance(raw_entity, dict):
+            for entity_name, fns_raw in raw_entity.items():
+                if not isinstance(fns_raw, dict):
+                    continue
+                entity_functions[str(entity_name)] = {}
+                for key, value in fns_raw.items():
+                    try:
+                        fn = FunctionName(str(key))
+                    except ValueError:
+                        continue
+                    if isinstance(value, dict):
+                        entity_functions[str(entity_name)][fn] = (
+                            FunctionConfig.from_dict(fn, value)
+                        )
+
+        return cls(
+            module,
+            enabled=enabled,
+            functions=functions,
+            entity_functions=entity_functions,
+        )
 
     @classmethod
     def default_auth(cls) -> Self:
@@ -111,4 +172,13 @@ class ModuleConfig:
                 FunctionName.SIGNIN: signin,
                 FunctionName.FORGOT_PASSWORD: forgot,
             },
+        )
+
+    @classmethod
+    def default_crud(cls) -> Self:
+        return cls(
+            ModuleName.CRUD,
+            enabled=True,
+            functions={},
+            entity_functions={},
         )

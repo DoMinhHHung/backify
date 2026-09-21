@@ -16,6 +16,7 @@ class SetFunctionFieldsInput:
     module: ModuleName
     function: FunctionName
     field_names: list[str]
+    entity_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ class SetFunctionFields:
             input_data.module,
             input_data.function,
             input_data.field_names,
+            entity_name=input_data.entity_name,
         )
         await self._project_repository.save(project)
         await self._event_publisher.publish(

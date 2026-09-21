@@ -20,10 +20,12 @@ class AddFieldRequest(BaseModel):
     required: bool = False
     unique: bool = False
     enum_values: list[str] | None = None
-
+    relation_to: str | None = None
+    relation_cardinality: str | None = None
 
 class SetFunctionFieldsRequest(BaseModel):
-    fields: list[str] = Field(min_length=1)
+    fields: list[str] = Field(min_length=0)
+    entity_name: str | None = None
 
 
 class RegisterRequest(BaseModel):

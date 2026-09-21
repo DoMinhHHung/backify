@@ -2,7 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status,Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.adapter.security.jwt import decode_access_token
@@ -18,6 +18,7 @@ from app.usecase.login_developer import LoginDeveloper
 from app.usecase.register_developer import RegisterDeveloper
 from app.usecase.remove_field import RemoveField
 from app.usecase.set_function_fields import SetFunctionFields
+from app.usecase.get_project_config import GetProjectConfig
 
 security = HTTPBearer(auto_error=False)
 
@@ -105,3 +106,16 @@ async def get_current_developer_id(
         return decode_access_token(credentials.credentials, container.settings)
     except (jwt.PyJWTError, ValueError):
         raise UnauthorizedError("invalid or expired token")
+    
+def get_get_project_config(
+    container: Annotated[Container, Depends(get_container)],
+) -> GetProjectConfig:
+    return container.get_project_config
+
+
+async def verify_internal_key(
+    x_internal_key: Annotated[str | None, Header(alias="X-Internal-Key")] = None,
+    container: Annotated[Container, Depends(get_container)] = None,
+) -> None:
+    if x_internal_key is None or x_internal_key != container.settings.internal_api_key:
+        raise UnauthorizedError("invalid internal key")

@@ -16,6 +16,7 @@ from app.domain.errors import (
 )
 from app.domain.field import Field
 from app.domain.module import FunctionConfig, FunctionName, ModuleConfig, ModuleName
+from app.domain.field import FieldType
 
 
 _SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -31,6 +32,15 @@ _AUTH_REQUIRED_FIELDS: dict[FunctionName, frozenset[str]] = {
 _MODULE_ENTITY: dict[ModuleName, str] = {
     ModuleName.AUTH: "User",
 }
+
+_CRUD_FUNCTIONS = frozenset(
+    {
+        FunctionName.CREATE,
+        FunctionName.READ,
+        FunctionName.UPDATE,
+        FunctionName.DELETE,
+    }
+)
 
 
 class Project:
@@ -103,6 +113,8 @@ class Project:
 
     def add_field_to_entity(self, entity_name: str, field: Field) -> None:
         entity = self.require_entity(entity_name)
+        if field.field_type == FieldType.RELATION and field.relation_to:
+            self.require_entity(field.relation_to)
         entity.add_field(field)
 
     def remove_field_from_entity(
@@ -119,33 +131,59 @@ class Project:
         if force:
             self._disable_field_everywhere(field_name)
 
+    def enable_module_by_name(self, module: ModuleName) -> None:
+        if module == ModuleName.AUTH:
+            self.enable_module(ModuleConfig.default_auth())
+            return
+        if module == ModuleName.CRUD:
+            self.enable_module(ModuleConfig.default_crud())
+            return
+        raise ModuleNotFoundError(module.value)
+
     def set_function_fields(
         self,
         module: ModuleName,
         function: FunctionName,
         field_names: list[str],
+        *,
+        entity_name: str | None = None,
     ) -> None:
         module_config = self.require_module(module)
-        function_config = module_config.get_function(function)
-        if function_config is None:
-            raise FunctionNotFoundError(function.value)
 
-        entity_name = _MODULE_ENTITY.get(module)
-        if entity_name is None:
-            raise ModuleNotFoundError(module.value)
-        entity = self.require_entity(entity_name)
+        if module == ModuleName.AUTH:
+            function_config = module_config.get_function(function)
+            if function_config is None:
+                raise FunctionNotFoundError(function.value)
+            target_entity = _MODULE_ENTITY[ModuleName.AUTH]
+            entity = self.require_entity(target_entity)
+            for name in field_names:
+                if not entity.has_field(name):
+                    raise FieldNotFoundError(name)
+            required = _AUTH_REQUIRED_FIELDS.get(function, frozenset())
+            missing = required - set(field_names)
+            if missing:
+                raise RequiredFieldToggleError(sorted(missing)[0], function.value)
+            module_config.set_function(
+                FunctionConfig(function, enabled_fields=field_names)
+            )
+            return
 
-        for name in field_names:
-            if not entity.has_field(name):
-                raise FieldNotFoundError(name)
+        if module == ModuleName.CRUD:
+            if entity_name is None:
+                raise ValueError("entity_name is required for CRUD module")
+            if function not in _CRUD_FUNCTIONS:
+                raise FunctionNotFoundError(function.value)
+            entity = self.require_entity(entity_name)
+            for name in field_names:
+                if not entity.has_field(name):
+                    raise FieldNotFoundError(name)
+            module_config.set_entity_function(
+                entity_name,
+                FunctionConfig(function, enabled_fields=field_names),
+            )
+            return
 
-        required = _AUTH_REQUIRED_FIELDS.get(function, frozenset())
-        missing = required - set(field_names)
-        if missing:
-            raise RequiredFieldToggleError(sorted(missing)[0], function.value)
-
-        new_config = FunctionConfig(function, enabled_fields=field_names)
-        module_config.set_function(new_config)
+        raise ModuleNotFoundError(module.value)
 
     def _is_field_in_use(self, field_name: str) -> bool:
         for module_config in self._modules.values():
