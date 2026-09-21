@@ -14,6 +14,8 @@ from app.adapter.http.dependencies import (
     get_remove_field,
     get_set_function_fields,
     get_enable_module,
+    get_get_project_config,
+    verify_internal_key,
 )
 from app.adapter.http.schemas import (
     AddEntityRequest,
@@ -32,6 +34,7 @@ from app.usecase.list_projects import ListProjects, ListProjectsInput
 from app.usecase.remove_field import RemoveField, RemoveFieldInput
 from app.usecase.set_function_fields import SetFunctionFields, SetFunctionFieldsInput
 from app.usecase.enable_module import EnableModule, EnableModuleInput
+from app.usecase.get_project_config import GetProjectConfig, GetProjectConfigInput
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
@@ -132,6 +135,8 @@ async def add_field(
             required=body.required,
             unique=body.unique,
             enum_values=body.enum_values,
+            relation_to=body.relation_to,
+            relation_cardinality=body.relation_cardinality,
         )
     )
     return ProjectResponse.from_domain(result.project)
@@ -180,6 +185,7 @@ async def set_function_fields(
             module=module,
             function=function,
             field_names=body.fields,
+            entity_name=body.entity_name,
         )
     )
     return ProjectResponse.from_domain(result.project)

@@ -16,6 +16,7 @@ from app.usecase.register_developer import RegisterDeveloper
 from app.usecase.remove_field import RemoveField
 from app.usecase.set_function_fields import SetFunctionFields
 from app.usecase.enable_module import EnableModule
+from app.usecase.get_project_config import GetProjectConfig
 
 
 class Container:
@@ -35,6 +36,7 @@ class Container:
             self._project_repository, self._event_publisher
         )
         self.get_project = GetProject(self._project_repository)
+        self.get_project_config = GetProjectConfig(self._project_repository)
         self.list_projects = ListProjects(self._project_repository)
         self.delete_project = DeleteProject(
             self._project_repository, self._event_publisher
