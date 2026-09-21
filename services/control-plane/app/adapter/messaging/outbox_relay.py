@@ -71,7 +71,12 @@ class OutboxRelay:
                 payload = row["payload"]
                 if isinstance(payload, str):
                     payload = json.loads(payload)
-                await self._publisher.publish(row["event_type"], payload)
+                message_id = str(row["id"])
+                await self._publisher.publish(
+                    row["event_type"],
+                    payload,
+                    message_id=message_id,
+                )
                 await conn.execute(
                     "UPDATE control.outbox SET published_at = NOW() WHERE id = $1",
                     row["id"],

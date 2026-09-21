@@ -23,11 +23,11 @@ migrate-down:
 
 grpc-gen:
 	uv --directory $(CP) run python -m grpc_tools.protoc \
-		-I proto \
-		--python_out=$(CP)/app/adapter/grpc/pb \
-		--grpc_python_out=$(CP)/app/adapter/grpc/pb \
-		--pyi_out=$(CP)/app/adapter/grpc/pb \
-		proto/control_plane.proto
+		-I ../../proto \
+		--python_out=app/adapter/grpc/pb \
+		--grpc_python_out=app/adapter/grpc/pb \
+		--pyi_out=app/adapter/grpc/pb \
+		../../proto/control_plane.proto
 	sed -i 's/^import control_plane_pb2/from . import control_plane_pb2/' \
 		$(CP)/app/adapter/grpc/pb/control_plane_pb2_grpc.py
 

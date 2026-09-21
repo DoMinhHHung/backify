@@ -21,12 +21,16 @@ if db_url.startswith("postgresql://"):
 
 parsed = urlparse(db_url)
 query = parse_qs(parsed.query)
-query.pop("sslmode", None)
-query.pop("ssl", None)
+ssl_raw = query.pop("sslmode", None) or query.pop("ssl", None)
+ssl_mode = ssl_raw[0] if ssl_raw else None
 clean_query = urlencode({k: v[0] for k, v in query.items()}) if query else ""
 db_url = urlunparse(parsed._replace(query=clean_query))
 
 config.set_main_option("sqlalchemy.url", db_url)
+
+_CONNECT_ARGS: dict = {"statement_cache_size": 0}
+if ssl_mode and ssl_mode.lower() not in {"disable", "false", "0", "off"}:
+    _CONNECT_ARGS["ssl"] = True
 
 
 def run_migrations_offline() -> None:
@@ -62,7 +66,7 @@ async def run_async_migrations() -> None:
         section,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={"statement_cache_size": 0},
+        connect_args=_CONNECT_ARGS,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

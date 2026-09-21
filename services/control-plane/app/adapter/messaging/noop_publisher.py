@@ -10,5 +10,16 @@ class NoopEventPublisher:
     async def disconnect(self) -> None:
         return None
 
-    async def publish(self, event_type: str, payload: dict[str, object]) -> None:
-        logger.info("event_dropped_noop", event_type=event_type, payload=payload)
+    async def publish(
+        self,
+        event_type: str,
+        payload: dict[str, object],
+        *,
+        message_id: str | None = None,
+    ) -> None:
+        logger.info(
+            "event_dropped_noop",
+            event_type=event_type,
+            message_id=message_id,
+            payload=payload,
+        )

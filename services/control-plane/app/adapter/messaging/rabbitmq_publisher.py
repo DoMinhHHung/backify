@@ -38,12 +38,19 @@ class RabbitMQEventPublisher:
             self._exchange = None
             logger.info("event_publisher_disconnected")
 
-    async def publish(self, event_type: str, payload: dict[str, object]) -> None:
+    async def publish(
+        self,
+        event_type: str,
+        payload: dict[str, object],
+        *,
+        message_id: str | None = None,
+    ) -> None:
         if self._exchange is None:
             raise RuntimeError("event publisher is not connected")
         message = aio_pika.Message(
             body=json.dumps(payload).encode("utf-8"),
             content_type="application/json",
             delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+            message_id=message_id,
         )
         await self._exchange.publish(message, routing_key=event_type)

@@ -15,7 +15,7 @@ dependencies = [
     "bcrypt>=4.2.0",
     "alembic>=1.14.0",
     "sqlalchemy[asyncio]>=2.0.36",
-    "grpcio>=1.68.0",
+    "grpcio>=1.84.0",
     "protobuf>=5.28.0",
 ]
 
@@ -26,7 +26,7 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
     "httpx>=0.28.0",
-    "grpcio-tools>=1.68.0",
+    "grpcio-tools>=1.84.0",
 ]
 
 [build-system]
@@ -53,7 +53,7 @@ known-third-party = ["grpc"]
 "tests/*" = ["S101", "S105", "S106"]
 "migrations/*" = ["N999", "S608"]
 "app/adapter/http/schemas.py" = ["N815"]
-"app/adapter/grpc/server.py" = ["N802"]  # RPC method names must match the .proto
+"app/adapter/grpc/server.py" = ["N802"]
 
 [tool.ruff.format]
 quote-style = "double"
