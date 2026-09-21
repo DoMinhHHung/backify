@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 import asyncpg
@@ -26,17 +28,23 @@ class Database:
             dsn=self._settings.database_url,
             min_size=self._settings.database_pool_min_size,
             max_size=self._settings.database_pool_max_size,
-            statement_cache_size=0,
+            statement_cache_size=self._settings.database_statement_cache_size,
+            command_timeout=self._settings.database_command_timeout,
         )
         async with self._pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
-        logger.info("db_pool_connected")
+        logger.info("db_pool_connected", max_size=self._settings.database_pool_max_size)
 
     async def disconnect(self) -> None:
         if self._pool is not None:
             await self._pool.close()
             self._pool = None
             logger.info("db_pool_closed")
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[asyncpg.Connection]:
+        async with self.pool.acquire() as conn, conn.transaction():
+            yield conn
 
     async def execute(self, query: str, *args: Any) -> str:
         async with self.pool.acquire() as conn:
@@ -56,7 +64,6 @@ class Database:
 
     async def health_check(self) -> bool:
         try:
-            val = await self.fetchval("SELECT 1")
-            return val == 1
+            return await self.fetchval("SELECT 1") == 1
         except Exception:
             return False

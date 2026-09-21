@@ -1,0 +1,37 @@
+diff --git a/services/control-plane/tests/conftest.py b/services/control-plane/tests/conftest.py
+index 9a2b6d2..6b9fd15 100644
+--- a/services/control-plane/tests/conftest.py
++++ b/services/control-plane/tests/conftest.py
+@@ -1,6 +1,8 @@
+ import os
+ 
+-os.environ.setdefault("APP_ENV", "test")
+-os.environ.setdefault("JWT_SECRET", "test-secret-that-is-long-enough-for-hs256-ok")
+-os.environ.setdefault("INTERNAL_API_KEY", "test-internal-key-that-is-long-enough-ok")
+-os.environ.setdefault("RABBITMQ_ENABLED", "false")
++os.environ["APP_ENV"] = "test"
++os.environ["JWT_SECRET"] = "test-secret-that-is-long-enough-for-hs256-ok"
++os.environ["JWT_EXPIRE_MINUTES"] = "60"
++os.environ["INTERNAL_API_KEY"] = "test-internal-key-that-is-long-enough-ok"
++os.environ["RABBITMQ_ENABLED"] = "false"
++os.environ["DATABASE_URL"] = "postgresql://unused:unused@localhost:5432/unused"
+diff --git a/services/control-plane/tests/http/test_auth_api.py b/services/control-plane/tests/http/test_auth_api.py
+index 97ccf41..c80ca9d 100644
+--- a/services/control-plane/tests/http/test_auth_api.py
++++ b/services/control-plane/tests/http/test_auth_api.py
+@@ -1,3 +1,6 @@
++from app.config import get_settings
++
++
+ def test_register_and_login(client):
+     r = client.post(
+         "/api/v1/auth/register",
+@@ -11,7 +14,7 @@ def test_register_and_login(client):
+     assert r.status_code == 200
+     body = r.json()
+     assert body["token_type"] == "bearer"
+-    assert body["expires_in"] == 3600
++    assert body["expires_in"] == get_settings().jwt_expire_minutes * 60
+ 
+ 
+ def test_long_unicode_password_is_accepted(client):

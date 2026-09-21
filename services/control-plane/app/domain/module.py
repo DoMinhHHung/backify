@@ -79,12 +79,13 @@ class ModuleConfig:
             return None
         return by_entity.get(function)
 
-    def set_entity_function(
-        self, entity_name: str, config: FunctionConfig
-    ) -> None:
-        if entity_name not in self._entity_functions:
-            self._entity_functions[entity_name] = {}
-        self._entity_functions[entity_name][config.function] = config
+    def set_entity_function(self, entity_name: str, config: FunctionConfig) -> None:
+        self._entity_functions.setdefault(entity_name, {})[config.function] = config
+
+    def functions_for_entity(
+        self, entity_name: str
+    ) -> dict[FunctionName, FunctionConfig]:
+        return self._entity_functions.get(entity_name, {})
 
     @property
     def functions(self) -> dict[FunctionName, FunctionConfig]:
@@ -92,22 +93,16 @@ class ModuleConfig:
 
     @property
     def entity_functions(self) -> dict[str, dict[FunctionName, FunctionConfig]]:
-        return {
-            entity: dict(fns) for entity, fns in self._entity_functions.items()
-        }
+        return {entity: dict(fns) for entity, fns in self._entity_functions.items()}
 
     def to_dict(self) -> dict[str, object]:
         data: dict[str, object] = {
             "enabled": self.enabled,
-            "functions": {
-                fn.value: cfg.to_dict() for fn, cfg in self._functions.items()
-            },
+            "functions": {fn.value: cfg.to_dict() for fn, cfg in self._functions.items()},
         }
         if self._entity_functions:
             data["entityFunctions"] = {
-                entity: {
-                    fn.value: cfg.to_dict() for fn, cfg in fns.items()
-                }
+                entity: {fn.value: cfg.to_dict() for fn, cfg in fns.items()}
                 for entity, fns in self._entity_functions.items()
             }
         return data
@@ -132,16 +127,15 @@ class ModuleConfig:
             for entity_name, fns_raw in raw_entity.items():
                 if not isinstance(fns_raw, dict):
                     continue
-                entity_functions[str(entity_name)] = {}
+                parsed: dict[FunctionName, FunctionConfig] = {}
                 for key, value in fns_raw.items():
                     try:
                         fn = FunctionName(str(key))
                     except ValueError:
                         continue
                     if isinstance(value, dict):
-                        entity_functions[str(entity_name)][fn] = (
-                            FunctionConfig.from_dict(fn, value)
-                        )
+                        parsed[fn] = FunctionConfig.from_dict(fn, value)
+                entity_functions[str(entity_name)] = parsed
 
         return cls(
             module,
@@ -152,33 +146,23 @@ class ModuleConfig:
 
     @classmethod
     def default_auth(cls) -> Self:
-        signup = FunctionConfig(
-            FunctionName.SIGNUP,
-            enabled_fields=["email", "password", "fullName"],
-        )
-        signin = FunctionConfig(
-            FunctionName.SIGNIN,
-            enabled_fields=["email", "password"],
-        )
-        forgot = FunctionConfig(
-            FunctionName.FORGOT_PASSWORD,
-            enabled_fields=["email"],
-        )
         return cls(
             ModuleName.AUTH,
             enabled=True,
             functions={
-                FunctionName.SIGNUP: signup,
-                FunctionName.SIGNIN: signin,
-                FunctionName.FORGOT_PASSWORD: forgot,
+                FunctionName.SIGNUP: FunctionConfig(
+                    FunctionName.SIGNUP,
+                    enabled_fields=["email", "password", "fullName"],
+                ),
+                FunctionName.SIGNIN: FunctionConfig(
+                    FunctionName.SIGNIN, enabled_fields=["email", "password"]
+                ),
+                FunctionName.FORGOT_PASSWORD: FunctionConfig(
+                    FunctionName.FORGOT_PASSWORD, enabled_fields=["email"]
+                ),
             },
         )
 
     @classmethod
     def default_crud(cls) -> Self:
-        return cls(
-            ModuleName.CRUD,
-            enabled=True,
-            functions={},
-            entity_functions={},
-        )
+        return cls(ModuleName.CRUD, enabled=True, functions={}, entity_functions={})

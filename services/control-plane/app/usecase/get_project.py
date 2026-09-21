@@ -19,10 +19,10 @@ class GetProjectOutput:
 
 class GetProject:
     def __init__(self, project_repository: ProjectRepository) -> None:
-        self._project_repository = project_repository
+        self._projects = project_repository
 
     async def execute(self, input_data: GetProjectInput) -> GetProjectOutput:
-        project = await self._project_repository.get_by_id(input_data.project_id)
+        project = await self._projects.get_by_id(input_data.project_id)
         if project is None:
             raise ProjectNotFoundError(str(input_data.project_id))
         if project.owner_id != input_data.owner_id:

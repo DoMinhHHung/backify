@@ -1,21 +1,14 @@
 import structlog
 
-from app.domain.events import ProjectEvent
-
 logger = structlog.get_logger()
 
 
 class NoopEventPublisher:
     async def connect(self) -> None:
-        logger.info("event_publisher_noop_connected")
+        logger.warning("event_publisher_noop_enabled")
 
     async def disconnect(self) -> None:
-        logger.info("event_publisher_noop_disconnected")
+        return None
 
-    async def publish(self, event: ProjectEvent) -> None:
-        logger.info(
-            "event_published_noop",
-            event_type=event.event_type.value,
-            project_id=str(event.project_id),
-            slug=event.slug,
-        )
+    async def publish(self, event_type: str, payload: dict[str, object]) -> None:
+        logger.info("event_dropped_noop", event_type=event_type, payload=payload)

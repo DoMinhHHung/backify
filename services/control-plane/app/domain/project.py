@@ -9,19 +9,20 @@ from app.domain.errors import (
     FieldInUseError,
     FieldNotFoundError,
     FunctionNotFoundError,
+    InvalidFieldConfigError,
     InvalidProjectNameError,
     InvalidSlugError,
     ModuleNotFoundError,
     RequiredFieldToggleError,
+    SystemFieldProtectedError,
 )
-from app.domain.field import Field
+from app.domain.field import Field, FieldType
 from app.domain.module import FunctionConfig, FunctionName, ModuleConfig, ModuleName
-from app.domain.field import FieldType
-
 
 _SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _SLUG_MIN = 3
 _SLUG_MAX = 40
+_NAME_MAX = 100
 
 _AUTH_REQUIRED_FIELDS: dict[FunctionName, frozenset[str]] = {
     FunctionName.SIGNUP: frozenset({"email", "password"}),
@@ -53,15 +54,16 @@ class Project:
         owner_id: UUID | None = None,
         entities: dict[str, Entity] | None = None,
         modules: dict[ModuleName, ModuleConfig] | None = None,
+        version: int = 1,
     ) -> None:
         self._validate_slug(slug)
-        if not name or not name.strip():
-            raise InvalidProjectNameError("project name must not be empty")
+        self._validate_name(name)
         self.id = project_id or uuid4()
         self.owner_id = owner_id
         self.name = name.strip()
         self.slug = slug
         self.schema_name = f"proj_{slug.replace('-', '_')}"
+        self.version = version
         self._entities: dict[str, Entity] = entities or {}
         self._modules: dict[ModuleName, ModuleConfig] = modules or {}
 
@@ -75,6 +77,13 @@ class Project:
             raise InvalidSlugError(
                 f"invalid slug '{slug}': only [a-z0-9-], no leading/trailing/double hyphen"
             )
+
+    @staticmethod
+    def _validate_name(name: str) -> None:
+        if not name or not name.strip():
+            raise InvalidProjectNameError("project name must not be empty")
+        if len(name.strip()) > _NAME_MAX:
+            raise InvalidProjectNameError(f"project name exceeds {_NAME_MAX} characters")
 
     @property
     def entities(self) -> dict[str, Entity]:
@@ -111,6 +120,19 @@ class Project:
         config.enabled = True
         self._modules[config.module] = config
 
+    def enable_module_by_name(self, module: ModuleName) -> None:
+        existing = self._modules.get(module)
+        if existing is not None:
+            existing.enabled = True
+            return
+        if module == ModuleName.AUTH:
+            self.enable_module(ModuleConfig.default_auth())
+            return
+        if module == ModuleName.CRUD:
+            self.enable_module(ModuleConfig.default_crud())
+            return
+        raise ModuleNotFoundError(module.value)
+
     def add_field_to_entity(self, entity_name: str, field: Field) -> None:
         entity = self.require_entity(entity_name)
         if field.field_type == FieldType.RELATION and field.relation_to:
@@ -125,20 +147,15 @@ class Project:
         force: bool = False,
     ) -> None:
         entity = self.require_entity(entity_name)
-        if not force and self._is_field_in_use(field_name):
+        field = entity.get_field(field_name)
+        if field is None:
+            raise FieldNotFoundError(field_name)
+        if field.system:
+            raise SystemFieldProtectedError(field_name)
+        if not force and self._is_field_in_use(entity_name, field_name):
             raise FieldInUseError(field_name)
         entity.remove_field(field_name)
-        if force:
-            self._disable_field_everywhere(field_name)
-
-    def enable_module_by_name(self, module: ModuleName) -> None:
-        if module == ModuleName.AUTH:
-            self.enable_module(ModuleConfig.default_auth())
-            return
-        if module == ModuleName.CRUD:
-            self.enable_module(ModuleConfig.default_crud())
-            return
-        raise ModuleNotFoundError(module.value)
+        self._disable_field_everywhere(entity_name, field_name)
 
     def set_function_fields(
         self,
@@ -151,14 +168,10 @@ class Project:
         module_config = self.require_module(module)
 
         if module == ModuleName.AUTH:
-            function_config = module_config.get_function(function)
-            if function_config is None:
+            if module_config.get_function(function) is None:
                 raise FunctionNotFoundError(function.value)
-            target_entity = _MODULE_ENTITY[ModuleName.AUTH]
-            entity = self.require_entity(target_entity)
-            for name in field_names:
-                if not entity.has_field(name):
-                    raise FieldNotFoundError(name)
+            entity = self.require_entity(_MODULE_ENTITY[ModuleName.AUTH])
+            self._require_fields_exist(entity, field_names)
             required = _AUTH_REQUIRED_FIELDS.get(function, frozenset())
             missing = required - set(field_names)
             if missing:
@@ -170,13 +183,13 @@ class Project:
 
         if module == ModuleName.CRUD:
             if entity_name is None:
-                raise ValueError("entity_name is required for CRUD module")
+                raise InvalidFieldConfigError(
+                    "entityName is required when configuring the crud module"
+                )
             if function not in _CRUD_FUNCTIONS:
                 raise FunctionNotFoundError(function.value)
             entity = self.require_entity(entity_name)
-            for name in field_names:
-                if not entity.has_field(name):
-                    raise FieldNotFoundError(name)
+            self._require_fields_exist(entity, field_names)
             module_config.set_entity_function(
                 entity_name,
                 FunctionConfig(function, enabled_fields=field_names),
@@ -185,18 +198,31 @@ class Project:
 
         raise ModuleNotFoundError(module.value)
 
-    def _is_field_in_use(self, field_name: str) -> bool:
+    @staticmethod
+    def _require_fields_exist(entity: Entity, field_names: list[str]) -> None:
+        for name in field_names:
+            if not entity.has_field(name):
+                raise FieldNotFoundError(name)
+
+    def _is_field_in_use(self, entity_name: str, field_name: str) -> bool:
         for module_config in self._modules.values():
             if not module_config.enabled:
                 continue
-            for fn_config in module_config.functions.values():
+            if _MODULE_ENTITY.get(module_config.module) == entity_name:
+                for fn_config in module_config.functions.values():
+                    if fn_config.is_enabled(field_name):
+                        return True
+            for fn_config in module_config.functions_for_entity(entity_name).values():
                 if fn_config.is_enabled(field_name):
                     return True
         return False
 
-    def _disable_field_everywhere(self, field_name: str) -> None:
+    def _disable_field_everywhere(self, entity_name: str, field_name: str) -> None:
         for module_config in self._modules.values():
-            for fn_config in module_config.functions.values():
+            if _MODULE_ENTITY.get(module_config.module) == entity_name:
+                for fn_config in module_config.functions.values():
+                    fn_config.disable_field(field_name)
+            for fn_config in module_config.functions_for_entity(entity_name).values():
                 fn_config.disable_field(field_name)
 
     def to_dict(self) -> dict[str, object]:
@@ -206,12 +232,12 @@ class Project:
             "name": self.name,
             "slug": self.slug,
             "schema": self.schema_name,
+            "version": self.version,
             "entities": {
                 name: entity.to_dict() for name, entity in self._entities.items()
             },
             "modules": {
-                module.value: config.to_dict()
-                for module, config in self._modules.items()
+                module.value: config.to_dict() for module, config in self._modules.items()
             },
         }
 
@@ -221,8 +247,7 @@ class Project:
                 name: entity.to_dict() for name, entity in self._entities.items()
             },
             "modules": {
-                module.value: config.to_dict()
-                for module, config in self._modules.items()
+                module.value: config.to_dict() for module, config in self._modules.items()
             },
         }
 
@@ -235,6 +260,7 @@ class Project:
         slug: str,
         config: dict[str, object],
         owner_id: UUID | None = None,
+        version: int = 1,
     ) -> Self:
         entities: dict[str, Entity] = {}
         raw_entities = config.get("entities", {})
@@ -261,6 +287,7 @@ class Project:
             owner_id=owner_id,
             entities=entities,
             modules=modules,
+            version=version,
         )
 
     @classmethod

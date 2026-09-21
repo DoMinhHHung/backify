@@ -26,7 +26,7 @@ async def register(
 ) -> DeveloperResponse:
     result = await usecase.execute(
         RegisterDeveloperInput(
-            email=body.email,
+            email=str(body.email),
             password=body.password,
             name=body.name,
         )
@@ -44,11 +44,12 @@ async def login(
     usecase: Annotated[LoginDeveloper, Depends(get_login_developer)],
 ) -> TokenResponse:
     result = await usecase.execute(
-        LoginDeveloperInput(email=body.email, password=body.password)
+        LoginDeveloperInput(email=str(body.email), password=body.password)
     )
     return TokenResponse(
         access_token=result.access_token,
         token_type=result.token_type,
+        expires_in=result.expires_in,
         developer_id=result.developer_id,
         email=result.email,
     )

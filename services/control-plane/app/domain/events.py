@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -19,36 +19,34 @@ class ProjectEvent:
     occurred_at: datetime
 
     @classmethod
-    def created(cls, project_id: UUID, slug: str, schema_name: str) -> "ProjectEvent":
+    def _make(
+        cls,
+        event_type: ProjectEventType,
+        project_id: UUID,
+        slug: str,
+        schema_name: str,
+    ) -> "ProjectEvent":
         return cls(
-            event_type=ProjectEventType.CREATED,
+            event_type=event_type,
             project_id=project_id,
             slug=slug,
             schema_name=schema_name,
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         )
+
+    @classmethod
+    def created(cls, project_id: UUID, slug: str, schema_name: str) -> "ProjectEvent":
+        return cls._make(ProjectEventType.CREATED, project_id, slug, schema_name)
 
     @classmethod
     def config_updated(
         cls, project_id: UUID, slug: str, schema_name: str
     ) -> "ProjectEvent":
-        return cls(
-            event_type=ProjectEventType.CONFIG_UPDATED,
-            project_id=project_id,
-            slug=slug,
-            schema_name=schema_name,
-            occurred_at=datetime.now(timezone.utc),
-        )
+        return cls._make(ProjectEventType.CONFIG_UPDATED, project_id, slug, schema_name)
 
     @classmethod
     def deleted(cls, project_id: UUID, slug: str, schema_name: str) -> "ProjectEvent":
-        return cls(
-            event_type=ProjectEventType.DELETED,
-            project_id=project_id,
-            slug=slug,
-            schema_name=schema_name,
-            occurred_at=datetime.now(timezone.utc),
-        )
+        return cls._make(ProjectEventType.DELETED, project_id, slug, schema_name)
 
     def to_payload(self) -> dict[str, object]:
         return {
