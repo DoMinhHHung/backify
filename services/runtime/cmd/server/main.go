@@ -16,9 +16,11 @@ import (
 	grpclient "github.com/DoMinhHHung/backify/services/runtime/internal/adapter/grpc"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/http/middleware"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/memory"
+	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/postgres"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/config"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/container"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/domain"
+	"github.com/DoMinhHHung/backify/services/runtime/internal/usecase"
 )
 
 func main() {
@@ -32,10 +34,19 @@ func main() {
 		log.Fatalf("config client: %v", err)
 	}
 
+	ctx := context.Background()
+	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("postgres: %v", err)
+	}
+	defer pool.Close()
+
+	schemaMigrator := postgres.NewSchemaMigrator(pool)
+
 	cache := memory.NewConfigCache(cfg.ConfigCacheTTL)
 	configClient := grpclient.NewCachedConfigClient(rawClient, cache)
 
-	c := container.New(cfg, configClient, cache)
+	c := container.New(cfg, configClient, cache, schemaMigrator)
 
 	projectMW := middleware.NewProjectMiddleware(c.ConfigClient)
 
@@ -51,6 +62,30 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	r.Post("/internal/bootstrap/{projectID}", func(w http.ResponseWriter, r *http.Request) {
+		projectID := chi.URLParam(r, "projectID")
+		out, err := c.BootstrapSchema.Execute(r.Context(), usecase.BootstrapSchemaInput{
+			ProjectID: projectID,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(out)
+	})
+
+	r.Get("/internal/config/{projectID}", func(w http.ResponseWriter, r *http.Request) {
+		projectID := chi.URLParam(r, "projectID")
+		cfg, err := c.ConfigClient.GetProjectConfig(r.Context(), projectID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cfg)
+	})
+
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(projectMW.Handler)
 
@@ -63,18 +98,6 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(cfg)
 		})
-	})
-
-	// giữ endpoint debug cũ
-	r.Get("/internal/config/{projectID}", func(w http.ResponseWriter, r *http.Request) {
-		projectID := chi.URLParam(r, "projectID")
-		cfg, err := c.ConfigClient.GetProjectConfig(r.Context(), projectID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(cfg)
 	})
 
 	srv := &http.Server{
@@ -95,9 +118,9 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("shutdown: %v", err)
 	}
 }
