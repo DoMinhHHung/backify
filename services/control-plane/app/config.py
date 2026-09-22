@@ -115,10 +115,7 @@ class Settings(BaseSettings):
                 )
             return self
 
-        if (
-            not self.is_loopback_bind
-            and not self.allow_insecure_defaults
-        ):
+        if not self.is_loopback_bind and not self.allow_insecure_defaults:
             self._reject_insecure_secrets()
 
         return self
