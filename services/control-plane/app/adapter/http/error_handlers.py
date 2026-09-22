@@ -42,8 +42,11 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(ValueError)
     async def value_error_handler(_request: Request, exc: ValueError) -> JSONResponse:
-        logger.warning("unmapped_value_error", error=str(exc))
+        logger.exception("unhandled_value_error")
         return JSONResponse(
-            status_code=400,
-            content={"code": "INVALID_INPUT", "message": str(exc)},
+            status_code=500,
+            content={
+                "code": "INTERNAL_ERROR",
+                "message": "internal server error",
+            },
         )

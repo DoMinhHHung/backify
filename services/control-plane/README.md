@@ -9,6 +9,7 @@ Dashboard API for Backify — manage projects, entities, field pools, and module
 - RabbitMQ (optional, `RABBITMQ_ENABLED=false` uses noop publisher)
 - JWT for developer auth
 - gRPC internal API (`GetProject`, `GetProjectConfig`) with `x-internal-key`
+- Optional gRPC TLS / mutual TLS
 
 ## Setup
 
@@ -33,6 +34,26 @@ Regenerate gRPC stubs after changing `proto/control_plane.proto`:
 ```bash
 make grpc-gen
 ```
+
+### Local secrets
+
+`.env.example` sets `ALLOW_INSECURE_DEFAULTS=true` so binding `0.0.0.0` works with
+placeholder secrets. For any non-loopback bind without that flag, `JWT_SECRET` and
+`INTERNAL_API_KEY` must each be at least 32 characters and not a known insecure
+default. Production / staging always enforce secrets; production also requires
+gRPC TLS when gRPC is enabled.
+
+### gRPC TLS
+
+```bash
+GRPC_TLS_CERT_FILE=/path/to/server.crt
+GRPC_TLS_KEY_FILE=/path/to/server.key
+# mutual TLS (optional):
+GRPC_TLS_CLIENT_CA_FILE=/path/to/ca.crt
+```
+
+Without cert/key files the server still binds insecure (dev only). Production
+refuses to start gRPC without TLS.
 
 ## Main flows
 
