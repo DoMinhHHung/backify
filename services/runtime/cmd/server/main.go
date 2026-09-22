@@ -11,11 +11,14 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimw "github.com/go-chi/chi/v5/middleware"
 
 	grpclient "github.com/DoMinhHHung/backify/services/runtime/internal/adapter/grpc"
+	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/http/middleware"
+	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/memory"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/config"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/container"
+	"github.com/DoMinhHHung/backify/services/runtime/internal/domain"
 )
 
 func main() {
@@ -24,18 +27,23 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 
-	configClient, err := grpclient.NewConfigClient(cfg.ControlPlaneGRPCAddr, cfg.InternalAPIKey)
+	rawClient, err := grpclient.NewConfigClient(cfg.ControlPlaneGRPCAddr, cfg.InternalAPIKey)
 	if err != nil {
 		log.Fatalf("config client: %v", err)
 	}
 
-	c := container.New(cfg, configClient)
+	cache := memory.NewConfigCache(cfg.ConfigCacheTTL)
+	configClient := grpclient.NewCachedConfigClient(rawClient, cache)
+
+	c := container.New(cfg, configClient, cache)
+
+	projectMW := middleware.NewProjectMiddleware(c.ConfigClient)
 
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(chimw.RequestID)
+	r.Use(chimw.RealIP)
+	r.Use(chimw.Logger)
+	r.Use(chimw.Recoverer)
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -43,6 +51,21 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	r.Route("/v1", func(r chi.Router) {
+		r.Use(projectMW.Handler)
+
+		r.Get("/me/config", func(w http.ResponseWriter, r *http.Request) {
+			cfg, ok := domain.ProjectConfigFromContext(r.Context())
+			if !ok {
+				http.Error(w, `{"error":"project context missing"}`, http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(cfg)
+		})
+	})
+
+	// giữ endpoint debug cũ
 	r.Get("/internal/config/{projectID}", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "projectID")
 		cfg, err := c.ConfigClient.GetProjectConfig(r.Context(), projectID)

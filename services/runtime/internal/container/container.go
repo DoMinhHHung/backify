@@ -8,11 +8,17 @@ import (
 type Container struct {
 	Config       *config.Config
 	ConfigClient port.ConfigClient
+	ConfigCache  port.ConfigCache
 }
 
-func New(cfg *config.Config, configClient port.ConfigClient) *Container {
+func New(
+	cfg *config.Config,
+	configClient port.ConfigClient,
+	configCache port.ConfigCache,
+) *Container {
 	return &Container{
 		Config:       cfg,
 		ConfigClient: configClient,
+		ConfigCache:  configCache,
 	}
 }
