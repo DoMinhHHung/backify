@@ -4,27 +4,55 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 jobs:
-  # Placeholder — will be expanded when code exists
-  lint-and-test:
+  control-plane:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: services/control-plane
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: backify
+          POSTGRES_PASSWORD: backify
+          POSTGRES_DB: backify_control
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U backify"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql://backify:backify@localhost:5432/backify_control
+      JWT_SECRET: ci-secret-that-is-long-enough-for-hs256-check
+      INTERNAL_API_KEY: ci-internal-key-that-is-long-enough-check
+      RABBITMQ_ENABLED: "false"
+
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.12'
+          enable-cache: true
 
-      - name: Check repository structure
+      - run: uv sync --extra dev
+
+      - name: Lint
         run: |
-          echo "Repository structure check (placeholder)"
-          ls -la
-          echo "CI pipeline is ready. Real tests will be added with code."
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Migrate
+        run: uv run alembic upgrade head
+
+      - name: Test
+        run: uv run pytest -q
