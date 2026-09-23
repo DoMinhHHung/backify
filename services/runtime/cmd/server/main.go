@@ -84,6 +84,11 @@ func main() {
 	})
 
 	r.Post("/internal/bootstrap/{projectID}", func(w http.ResponseWriter, r *http.Request) {
+		key := r.Header.Get("X-Internal-Key")
+		if key == "" || key != cfg.InternalAPIKey {
+			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
 		projectID := chi.URLParam(r, "projectID")
 		out, err := c.BootstrapSchema.Execute(r.Context(), usecase.BootstrapSchemaInput{
 			ProjectID: projectID,
