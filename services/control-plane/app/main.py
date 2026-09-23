@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse
 
 from app.adapter.grpc.server import create_grpc_server
 from app.adapter.http.error_handlers import register_error_handlers
-from app.adapter.http.middleware import RequestContextMiddleware
 from app.adapter.http.routers import auth_router, projects_router
 from app.adapter.messaging.noop_publisher import NoopEventPublisher
 from app.adapter.messaging.outbox_relay import OutboxRelay
