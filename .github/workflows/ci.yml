@@ -5,11 +5,13 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   control-plane:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+
     defaults:
       run:
         working-directory: services/control-plane
@@ -21,7 +23,8 @@ jobs:
           POSTGRES_USER: backify
           POSTGRES_PASSWORD: backify
           POSTGRES_DB: backify_control
-        ports: ["5432:5432"]
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U backify"
           --health-interval 5s
@@ -45,43 +48,27 @@ jobs:
           enable-cache: true
 
       - run: uv sync --extra dev
-
-      - name: Lint
-        run: |
-          uv run ruff check .
-          uv run ruff format --check .
-
-      - name: Migrate
-        run: uv run alembic upgrade head
-
-      - name: Test
-        run: uv run pytest -q
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run alembic upgrade head
+      - run: uv run pytest -q
 
   runtime:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+
     defaults:
       run:
         working-directory: services/runtime
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: services/runtime/go.mod
-          cache-dependency-path: services/runtime/go.sum
+          cache: true
 
-      - name: Download modules
-        run: go mod download
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Unit tests
-        run: |
-          go test ./internal/permission/ -count=1
-          go test ./... -count=1
+      - run: go mod download
+      - run: go test ./... -count=1
+      - run: go vet ./...
+      - run: go build -o /tmp/runtime ./cmd/server

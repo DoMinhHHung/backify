@@ -57,8 +57,9 @@ test:
 	$(UV) run pytest -q
 
 test-runtime:
-	cd $(RT) && go test ./internal/permission/ -v
-	cd $(RT) && go test ./... -count=1
+	cd $(RT) && go test ./internal/... -count=1
+	cd $(RT) && go vet ./...
+	cd $(RT) && go build -o /tmp/backify-runtime ./cmd/server
 
 test-cov:
 	$(UV) run pytest -q --cov=app --cov-report=term-missing

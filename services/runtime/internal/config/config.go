@@ -16,7 +16,10 @@ type Config struct {
 	JWTAccessTTL         time.Duration
 	JWTRefreshTTL        time.Duration
 	ConfigCacheTTL       time.Duration
-	ControlPlaneGRPCTLS bool
+	ControlPlaneGRPCTLS  bool
+	RabbitMQURL          string
+	RabbitMQEnabled      bool
+	RabbitMQQueue        string
 }
 
 func Load() (*Config, error) {
@@ -33,7 +36,10 @@ func Load() (*Config, error) {
 		JWTAccessTTL:         getDurationEnv("JWT_ACCESS_TTL", 15*time.Minute),
 		JWTRefreshTTL:        getDurationEnv("JWT_REFRESH_TTL", 7*24*time.Hour),
 		ConfigCacheTTL:       getDurationEnv("CONFIG_CACHE_TTL", 30*time.Second),
-		ControlPlaneGRPCTLS: getEnv("CONTROL_PLANE_GRPC_TLS", "false") == "true",
+		ControlPlaneGRPCTLS:  getEnv("CONTROL_PLANE_GRPC_TLS", "false") == "true",
+		RabbitMQURL:          getEnv("RABBITMQ_URL", "amqp://backify:backify@localhost:5672/"),
+		RabbitMQEnabled:      getEnv("RABBITMQ_ENABLED", "false") == "true",
+		RabbitMQQueue:        getEnv("RABBITMQ_QUEUE", "runtime.config"),
 	}
 	if cfg.InternalAPIKey == "" {
 		return nil, errString("INTERNAL_API_KEY is required")

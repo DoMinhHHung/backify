@@ -18,6 +18,7 @@ import (
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/http/handlers"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/http/middleware"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/memory"
+	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/messaging"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/postgres"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/security"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/config"
@@ -38,8 +39,10 @@ func main() {
 		log.Fatalf("config client: %v", err)
 	}
 
-	ctx := context.Background()
-	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL)
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	defer rootCancel()
+
+	pool, err := postgres.NewPool(rootCtx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("postgres: %v", err)
 	}
@@ -67,14 +70,26 @@ func main() {
 		permEngine,
 	)
 
+	var rabbit *messaging.RabbitConsumer
+	if cfg.RabbitMQEnabled {
+		rabbit = messaging.NewRabbitConsumer(cfg.RabbitMQURL, cfg.RabbitMQQueue, c.ConfigEvents)
+		if err := rabbit.Start(rootCtx); err != nil {
+			log.Printf("rabbit consumer failed to start (continuing without events): %v", err)
+			rabbit = nil
+		} else {
+			defer rabbit.Close()
+		}
+	}
+
 	projectMW := middleware.NewProjectMiddleware(c.ConfigClient)
 	authMW := middleware.NewAuthMiddleware(c.TokenService)
 	authHandler := handlers.NewAuthHandler(c.Auth)
 	crudHandler := handlers.NewCRUDHandler(c.CRUD)
+	rateLimit := middleware.NewRateLimiter(120, time.Minute)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
-	r.Use(chimw.Logger)
+	r.Use(middleware.StructuredLog)
 	r.Use(chimw.Recoverer)
 
 	httpadapter.MountSwagger(r)
@@ -82,7 +97,7 @@ func main() {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	r.Route("/internal", func(r chi.Router) {
@@ -99,7 +114,7 @@ func main() {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(out)
+			_ = json.NewEncoder(w).Encode(out)
 		})
 
 		r.Post("/projects/{projectID}/users/{userID}/role", func(w http.ResponseWriter, r *http.Request) {
@@ -109,7 +124,7 @@ func main() {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(`{"error":"invalid json"}`))
+				_, _ = w.Write([]byte(`{"error":"invalid json"}`))
 				return
 			}
 			err := c.PromoteUser.Execute(r.Context(), usecase.PromoteUserInput{
@@ -132,16 +147,17 @@ func main() {
 				log.Printf("get project config error: %v", err)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadGateway)
-				w.Write([]byte(`{"error":"project config unavailable"}`))
+				_, _ = w.Write([]byte(`{"error":"project config unavailable"}`))
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(projectCfg)
+			_ = json.NewEncoder(w).Encode(projectCfg)
 		})
 	})
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(projectMW.Handler)
+		r.Use(rateLimit.Middleware)
 
 		r.Post("/auth/signup", authHandler.Signup)
 		r.Post("/auth/signin", authHandler.Signin)
@@ -159,13 +175,13 @@ func main() {
 		})
 
 		r.Get("/me/config", func(w http.ResponseWriter, r *http.Request) {
-			cfg, ok := domain.ProjectConfigFromContext(r.Context())
+			projectCfg, ok := domain.ProjectConfigFromContext(r.Context())
 			if !ok {
 				http.Error(w, `{"error":"project context missing"}`, http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(cfg)
+			_ = json.NewEncoder(w).Encode(projectCfg)
 		})
 	})
 
@@ -186,6 +202,8 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+
+	rootCancel()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

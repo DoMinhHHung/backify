@@ -15,6 +15,7 @@ type Container struct {
 	Auth            *usecase.Auth
 	CRUD            *usecase.CRUD
 	PromoteUser     *usecase.PromoteUser
+	ConfigEvents    *usecase.ConfigEvents
 	TokenService    port.TokenService
 }
 
@@ -42,5 +43,7 @@ func New(
 	c.Auth = usecase.NewAuth(users, hasher, tokens)
 	c.CRUD = usecase.NewCRUD(records, permission)
 	c.PromoteUser = usecase.NewPromoteUser(users, configClient)
+	c.BootstrapSchema = usecase.NewBootstrapSchema(configClient, schemaMigrator, configCache)
+	c.ConfigEvents = usecase.NewConfigEvents(configCache, c.BootstrapSchema)
 	return c
 }

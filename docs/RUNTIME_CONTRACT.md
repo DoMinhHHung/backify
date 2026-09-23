@@ -235,3 +235,43 @@ Out of scope for this contract version:
 - Implementations that violate this document or PERMISSION_CONTRACT are bugs, even if "it works".
 - CI must keep a dedicated **runtime** job: `go vet` and unit tests under `services/runtime` (including permission and usecase coverage for ownership and CRUD field filtering).
 - Integration ownership tests may run with `DATABASE_URL` and build tag `integration`; they are not required for every unit-only CI path.
+
+# Runtime Contract
+
+## Identify project
+- Header bắt buộc: `X-Project-Id: <uuid>`
+- Mọi route `/v1/*` (trừ khi ghi chú khác)
+
+## End-user JWT
+Claims:
+- `uid` — user id
+- `pid` — project id
+- `role` — `user` | `admin`
+- `typ` — `access` | `refresh`
+
+Header: `Authorization: Bearer <accessToken>`
+
+## Internal
+- Prefix: `/internal/*`
+- Header: `X-Internal-Key` (shared với control-plane)
+
+## Ownership
+- Xem `docs/PERMISSION_CONTRACT.md`
+- Entity `User` không expose qua generic CRUD
+
+## Errors (JSON)
+| HTTP | code | Ý nghĩa |
+|------|------|---------|
+| 400 | validation_error | Input sai |
+| 401 | unauthorized / invalid_credentials | Auth |
+| 403 | forbidden | Không đủ ownership |
+| 404 | not_found | Entity/record không có |
+| 409 | email_taken | Signup trùng email |
+| 429 | — | Rate limit |
+| 502 | — | Config upstream lỗi |
+
+## Events (RabbitMQ)
+- Exchange: `backify.events` (topic)
+- Routing keys: `project.created`, `project.config.updated`
+- Payload: `{ "event", "projectId", "slug", "schemaName", "occurredAt" }`
+- Runtime: invalidate cache + EnsureSchema
