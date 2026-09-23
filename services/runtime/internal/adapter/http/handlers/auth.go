@@ -36,7 +36,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		Fields:        body,
 	})
 	if err != nil {
-		writeDomainError(w, err)
+		WriteDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
@@ -67,7 +67,7 @@ func (h *AuthHandler) Signin(w http.ResponseWriter, r *http.Request) {
 		Password:      body.Password,
 	})
 	if err != nil {
-		writeDomainError(w, err)
+		WriteDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -96,7 +96,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		RefreshToken:  body.RefreshToken,
 	})
 	if err != nil {
-		writeDomainError(w, err)
+		WriteDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, tokens)
@@ -119,7 +119,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		UserID:        claims.UserID,
 	})
 	if err != nil {
-		writeDomainError(w, err)
+		WriteDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, publicUser(user))
@@ -147,7 +147,7 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
-func writeDomainError(w http.ResponseWriter, err error) {
+func WriteDomainError(w http.ResponseWriter, err error) {
 	if de, ok := err.(*domain.DomainError); ok {
 		status := http.StatusBadRequest
 		switch de.Code {
@@ -166,5 +166,10 @@ func writeDomainError(w http.ResponseWriter, err error) {
 		return
 	}
 	log.Printf("auth internal error: %v", err)
+	log.Printf("handler internal error: %v", err)
 	writeError(w, http.StatusInternalServerError, "internal error")
+}
+
+func writeDomainError(w http.ResponseWriter, err error) {
+	WriteDomainError(w, err)
 }

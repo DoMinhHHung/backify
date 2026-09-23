@@ -46,6 +46,9 @@ func (uc *Auth) Signup(ctx context.Context, in SignupInput) (*AuthOutput, error)
 	if len(password) < 8 {
 		return nil, domain.ErrValidation("password must be at least 8 characters")
 	}
+	if len(password) > 72 {
+		return nil, domain.ErrValidation("password must be at most 72 bytes")
+	}
 
 	existing, err := uc.users.FindByEmail(ctx, cfg.SchemaName, email)
 	if err != nil {

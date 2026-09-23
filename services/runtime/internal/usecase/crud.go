@@ -20,6 +20,9 @@ func NewCRUD(records port.RecordRepository, permission port.PermissionEngine) *C
 func (uc *CRUD) resolveEntity(cfg *domain.ProjectConfig, name string) (string, *domain.Entity, error) {
 	for k, e := range cfg.Entities {
 		if strings.EqualFold(k, name) {
+			if strings.EqualFold(k, "User") {
+				return "", nil, domain.ErrNotFound("entity not found")
+			}
 			return k, &e, nil
 		}
 	}

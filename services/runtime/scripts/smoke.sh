@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+RUNTIME_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="${ENV_FILE:-$RUNTIME_DIR/.env}"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Missing env file: $ENV_FILE" >&2
+  exit 1
+fi
+
 CP=http://localhost:8000
 RT=http://localhost:8081
-INTERNAL_KEY=$(grep INTERNAL_API_KEY services/runtime/.env | cut -d= -f2)
+INTERNAL_KEY=$(grep -E '^INTERNAL_API_KEY=' "$ENV_FILE" | cut -d= -f2-)
 
 echo "== Health =="
 curl -sf "$CP/docs" >/dev/null && echo "control-plane docs OK"
@@ -31,7 +40,8 @@ PROJECT_ID=$(echo "$PROJ" | jq -r .id)
 echo "project=$PROJECT_ID"
 
 echo "== Bootstrap schema =="
-curl -sf -X POST "$RT/internal/bootstrap/$PROJECT_ID" | jq .
+curl -sf -X POST "$RT/internal/bootstrap/$PROJECT_ID" \
+  -H "X-Internal-Key: $INTERNAL_KEY" | jq .
 
 echo "== End-user signup/signin =="
 curl -sf -X POST "$RT/v1/auth/signup" \

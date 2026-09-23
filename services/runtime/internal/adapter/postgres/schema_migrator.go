@@ -69,7 +69,12 @@ func (m *SchemaMigrator) EnsureSchema(ctx context.Context, cfg *domain.ProjectCo
 	}
 
 	for _, entity := range cfg.Entities {
-		if err := m.ensureTable(ctx, tx, cfg.SchemaName, entity); err != nil {
+		if err := m.createTable(ctx, tx, cfg.SchemaName, entity); err != nil {
+			return err
+		}
+	}
+	for _, entity := range cfg.Entities {
+		if err := m.ensureConstraints(ctx, tx, cfg.SchemaName, entity); err != nil {
 			return err
 		}
 	}
@@ -86,7 +91,7 @@ func (m *SchemaMigrator) EnsureSchema(ctx context.Context, cfg *domain.ProjectCo
 	return tx.Commit(ctx)
 }
 
-func (m *SchemaMigrator) ensureTable(ctx context.Context, tx pgx.Tx, schemaName string, entity domain.Entity) error {
+func (m *SchemaMigrator) createTable(ctx context.Context, tx pgx.Tx, schemaName string, entity domain.Entity) error {
 	table := quoteIdent(schemaName) + "." + quoteIdent(toSnake(entity.Name))
 
 	cols := make([]string, 0, len(entity.Pool)+3)
@@ -123,23 +128,6 @@ func (m *SchemaMigrator) ensureTable(ctx context.Context, tx pgx.Tx, schemaName 
 		return fmt.Errorf("create table %s: %w", entity.Name, err)
 	}
 
-	for _, f := range entity.Pool {
-		if f.Type == "relation" && f.RelationCardinality == "n-1" && f.RelationTo != "" {
-			fkTable := quoteIdent(schemaName) + "." + quoteIdent(toSnake(f.RelationTo))
-			col := toSnake(f.Name)
-			constraint := fmt.Sprintf("fk_%s_%s", toSnake(entity.Name), col)
-			alter := fmt.Sprintf(
-				`ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (id) ON DELETE RESTRICT`,
-				table, quoteIdent(constraint), quoteIdent(col), fkTable,
-			)
-			if _, err := tx.Exec(ctx, alter); err != nil {
-				if !strings.Contains(err.Error(), "already exists") {
-					return fmt.Errorf("add fk %s: %w", constraint, err)
-				}
-			}
-		}
-	}
-
 	if strings.EqualFold(entity.Name, "User") {
 		alterRole := fmt.Sprintf(
 			`ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s TEXT NOT NULL DEFAULT 'user'`,
@@ -151,6 +139,45 @@ func (m *SchemaMigrator) ensureTable(ctx context.Context, tx pgx.Tx, schemaName 
 		}
 	}
 
+	return nil
+}
+
+func (m *SchemaMigrator) ensureConstraints(ctx context.Context, tx pgx.Tx, schemaName string, entity domain.Entity) error {
+	table := quoteIdent(schemaName) + "." + quoteIdent(toSnake(entity.Name))
+	tableName := toSnake(entity.Name)
+
+	for _, f := range entity.Pool {
+		if f.Type != "relation" || f.RelationCardinality != "n-1" || f.RelationTo == "" {
+			continue
+		}
+		fkTable := quoteIdent(schemaName) + "." + quoteIdent(toSnake(f.RelationTo))
+		col := toSnake(f.Name)
+		constraint := fmt.Sprintf("fk_%s_%s", tableName, col)
+
+		var exists bool
+		check := `
+			SELECT EXISTS (
+				SELECT 1
+				FROM pg_constraint c
+				JOIN pg_class t ON t.oid = c.conrelid
+				JOIN pg_namespace n ON n.oid = t.relnamespace
+				WHERE c.conname = $1 AND n.nspname = $2 AND t.relname = $3
+			)`
+		if err := tx.QueryRow(ctx, check, constraint, schemaName, tableName).Scan(&exists); err != nil {
+			return fmt.Errorf("check fk %s: %w", constraint, err)
+		}
+		if exists {
+			continue
+		}
+
+		alter := fmt.Sprintf(
+			`ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (id) ON DELETE RESTRICT`,
+			table, quoteIdent(constraint), quoteIdent(col), fkTable,
+		)
+		if _, err := tx.Exec(ctx, alter); err != nil {
+			return fmt.Errorf("add fk %s: %w", constraint, err)
+		}
+	}
 	return nil
 }
 

@@ -61,6 +61,9 @@ func (r *RecordRepository) Create(ctx context.Context, schemaName, table string,
 }
 
 func (r *RecordRepository) FindByID(ctx context.Context, schemaName, table, id string) (domain.Record, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, domain.ErrNotFound("record not found")
+	}
 	q := fmt.Sprintf(`SELECT * FROM %s WHERE %s = $1`, r.tableRef(schemaName, table), quoteIdent("id"))
 	rows, err := r.pool.Query(ctx, q, id)
 	if err != nil {
@@ -133,6 +136,9 @@ func (r *RecordRepository) List(ctx context.Context, schemaName, table string, o
 }
 
 func (r *RecordRepository) Update(ctx context.Context, schemaName, table, id string, columns map[string]any) (domain.Record, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, domain.ErrNotFound("record not found")
+	}
 	delete(columns, "id")
 	delete(columns, "created_at")
 	columns["updated_at"] = time.Now().UTC()
@@ -168,6 +174,9 @@ func (r *RecordRepository) Update(ctx context.Context, schemaName, table, id str
 }
 
 func (r *RecordRepository) Delete(ctx context.Context, schemaName, table, id string) error {
+	if _, err := uuid.Parse(id); err != nil {
+		return domain.ErrNotFound("record not found")
+	}
 	q := fmt.Sprintf(`DELETE FROM %s WHERE %s = $1`, r.tableRef(schemaName, table), quoteIdent("id"))
 	ct, err := r.pool.Exec(ctx, q, id)
 	if err != nil {
@@ -193,7 +202,18 @@ func scanRecord(rows pgx.Rows) (domain.Record, error) {
 	}
 	rec := make(domain.Record, len(descs))
 	for i, d := range descs {
-		rec[fromSnake(string(d.Name))] = values[i]
+		v := values[i]
+		switch t := v.(type) {
+		case [16]byte:
+			v = uuid.UUID(t).String()
+		case []byte:
+			if len(t) == 16 {
+				var arr [16]byte
+				copy(arr[:], t)
+				v = uuid.UUID(arr).String()
+			}
+		}
+		rec[fromSnake(string(d.Name))] = v
 	}
 	return rec, nil
 }

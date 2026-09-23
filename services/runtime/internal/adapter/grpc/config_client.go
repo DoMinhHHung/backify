@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
@@ -18,11 +19,14 @@ type ConfigClient struct {
 	apiKey string
 }
 
-func NewConfigClient(addr string, apiKey string) (*ConfigClient, error) {
-	conn, err := grpc.NewClient(
-		addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+func NewConfigClient(addr string, apiKey string, useTLS bool) (*ConfigClient, error) {
+	var opts grpc.DialOption
+	if useTLS {
+		opts = grpc.WithTransportCredentials(credentials.NewTLS(nil))
+	} else {
+		opts = grpc.WithTransportCredentials(insecure.NewCredentials())
+	}
+	conn, err := grpc.NewClient(addr, opts)
 	if err != nil {
 		return nil, fmt.Errorf("dial control-plane: %w", err)
 	}

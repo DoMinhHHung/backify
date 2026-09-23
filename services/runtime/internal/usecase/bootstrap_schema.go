@@ -10,12 +10,18 @@ import (
 type BootstrapSchema struct {
 	configClient   port.ConfigClient
 	schemaMigrator port.SchemaMigrator
+	configCache    port.ConfigCache
 }
 
-func NewBootstrapSchema(configClient port.ConfigClient, schemaMigrator port.SchemaMigrator) *BootstrapSchema {
+func NewBootstrapSchema(
+	configClient port.ConfigClient,
+	schemaMigrator port.SchemaMigrator,
+	configCache port.ConfigCache,
+) *BootstrapSchema {
 	return &BootstrapSchema{
 		configClient:   configClient,
 		schemaMigrator: schemaMigrator,
+		configCache:    configCache,
 	}
 }
 
@@ -30,6 +36,10 @@ type BootstrapSchemaOutput struct {
 }
 
 func (uc *BootstrapSchema) Execute(ctx context.Context, in BootstrapSchemaInput) (*BootstrapSchemaOutput, error) {
+	if uc.configCache != nil {
+		uc.configCache.Invalidate(ctx, in.ProjectID)
+	}
+
 	cfg, err := uc.configClient.GetProjectConfig(ctx, in.ProjectID)
 	if err != nil {
 		return nil, fmt.Errorf("get config: %w", err)

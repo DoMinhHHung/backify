@@ -38,7 +38,7 @@ func New(
 		TokenService:   tokens,
 	}
 
-	c.BootstrapSchema = usecase.NewBootstrapSchema(configClient, schemaMigrator)
+	c.BootstrapSchema = usecase.NewBootstrapSchema(configClient, schemaMigrator, configCache)
 	c.Auth = usecase.NewAuth(users, hasher, tokens)
 	c.CRUD = usecase.NewCRUD(records, permission)
 	c.PromoteUser = usecase.NewPromoteUser(users, configClient)

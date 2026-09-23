@@ -14,6 +14,7 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 
 	grpclient "github.com/DoMinhHHung/backify/services/runtime/internal/adapter/grpc"
+	httpadapter "github.com/DoMinhHHung/backify/services/runtime/internal/adapter/http"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/http/handlers"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/http/middleware"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/memory"
@@ -32,7 +33,7 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 
-	rawClient, err := grpclient.NewConfigClient(cfg.ControlPlaneGRPCAddr, cfg.InternalAPIKey)
+	rawClient, err := grpclient.NewConfigClient(cfg.ControlPlaneGRPCAddr, cfg.InternalAPIKey, cfg.ControlPlaneGRPCTLS)
 	if err != nil {
 		log.Fatalf("config client: %v", err)
 	}
@@ -73,9 +74,10 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
-	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
+
+	httpadapter.MountSwagger(r)
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -83,58 +85,59 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	r.Post("/internal/bootstrap/{projectID}", func(w http.ResponseWriter, r *http.Request) {
-		key := r.Header.Get("X-Internal-Key")
-		if key == "" || key != cfg.InternalAPIKey {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-			return
-		}
-		projectID := chi.URLParam(r, "projectID")
-		out, err := c.BootstrapSchema.Execute(r.Context(), usecase.BootstrapSchemaInput{
-			ProjectID: projectID,
-		})
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(out)
-	})
+	r.Route("/internal", func(r chi.Router) {
+		r.Use(middleware.InternalKey(cfg.InternalAPIKey))
 
-	r.Post("/internal/projects/{projectID}/users/{userID}/role", func(w http.ResponseWriter, r *http.Request) {
-		key := r.Header.Get("X-Internal-Key")
-		if key == "" || key != cfg.InternalAPIKey {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-			return
-		}
-		var body struct {
-			Role string `json:"role"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
-			return
-		}
-		err := c.PromoteUser.Execute(r.Context(), usecase.PromoteUserInput{
-			ProjectID: chi.URLParam(r, "projectID"),
-			UserID:    chi.URLParam(r, "userID"),
-			Role:      body.Role,
+		r.Post("/bootstrap/{projectID}", func(w http.ResponseWriter, r *http.Request) {
+			projectID := chi.URLParam(r, "projectID")
+			out, err := c.BootstrapSchema.Execute(r.Context(), usecase.BootstrapSchemaInput{
+				ProjectID: projectID,
+			})
+			if err != nil {
+				log.Printf("bootstrap error: %v", err)
+				handlers.WriteDomainError(w, err)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(out)
 		})
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	})
 
-	r.Get("/internal/config/{projectID}", func(w http.ResponseWriter, r *http.Request) {
-		projectID := chi.URLParam(r, "projectID")
-		cfg, err := c.ConfigClient.GetProjectConfig(r.Context(), projectID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(cfg)
+		r.Post("/projects/{projectID}/users/{userID}/role", func(w http.ResponseWriter, r *http.Request) {
+			var body struct {
+				Role string `json:"role"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(`{"error":"invalid json"}`))
+				return
+			}
+			err := c.PromoteUser.Execute(r.Context(), usecase.PromoteUserInput{
+				ProjectID: chi.URLParam(r, "projectID"),
+				UserID:    chi.URLParam(r, "userID"),
+				Role:      body.Role,
+			})
+			if err != nil {
+				log.Printf("promote error: %v", err)
+				handlers.WriteDomainError(w, err)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		r.Get("/config/{projectID}", func(w http.ResponseWriter, r *http.Request) {
+			projectID := chi.URLParam(r, "projectID")
+			projectCfg, err := c.ConfigClient.GetProjectConfig(r.Context(), projectID)
+			if err != nil {
+				log.Printf("get project config error: %v", err)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadGateway)
+				w.Write([]byte(`{"error":"project config unavailable"}`))
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(projectCfg)
+		})
 	})
 
 	r.Route("/v1", func(r chi.Router) {

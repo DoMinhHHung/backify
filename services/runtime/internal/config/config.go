@@ -16,6 +16,7 @@ type Config struct {
 	JWTAccessTTL         time.Duration
 	JWTRefreshTTL        time.Duration
 	ConfigCacheTTL       time.Duration
+	ControlPlaneGRPCTLS bool
 }
 
 func Load() (*Config, error) {
@@ -28,16 +29,20 @@ func Load() (*Config, error) {
 		ControlPlaneGRPCAddr: getEnv("CONTROL_PLANE_GRPC_ADDR", "localhost:9091"),
 		InternalAPIKey:       getEnv("INTERNAL_API_KEY", ""),
 		DatabaseURL:          getEnv("DATABASE_URL", ""),
-		JWTSecret:            getEnv("JWT_SECRET", "change-me-runtime"),
+		JWTSecret:            getEnv("JWT_SECRET", ""),
 		JWTAccessTTL:         getDurationEnv("JWT_ACCESS_TTL", 15*time.Minute),
 		JWTRefreshTTL:        getDurationEnv("JWT_REFRESH_TTL", 7*24*time.Hour),
 		ConfigCacheTTL:       getDurationEnv("CONFIG_CACHE_TTL", 30*time.Second),
+		ControlPlaneGRPCTLS: getEnv("CONTROL_PLANE_GRPC_TLS", "false") == "true",
 	}
 	if cfg.InternalAPIKey == "" {
 		return nil, errString("INTERNAL_API_KEY is required")
 	}
 	if cfg.DatabaseURL == "" {
 		return nil, errString("DATABASE_URL is required")
+	}
+	if len(cfg.JWTSecret) < 32 {
+		return nil, errString("JWT_SECRET is required and must be at least 32 bytes")
 	}
 	return cfg, nil
 }

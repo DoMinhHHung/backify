@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -64,7 +66,8 @@ func (r *UserRepository) Create(ctx context.Context, schemaName string, user *do
 		user.UpdatedAt,
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique") {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return domain.ErrEmailTaken()
 		}
 		return fmt.Errorf("create user: %w", err)
@@ -112,7 +115,6 @@ func (r *UserRepository) FindByEmail(ctx context.Context, schemaName, email stri
 		}
 		return nil, fmt.Errorf("find by email: %w", err)
 	}
-	u.Role = "user"
 	return &u, nil
 }
 
@@ -156,7 +158,6 @@ func (r *UserRepository) FindByID(ctx context.Context, schemaName, id string) (*
 		}
 		return nil, fmt.Errorf("find by id: %w", err)
 	}
-	u.Role = "user"
 	return &u, nil
 }
 

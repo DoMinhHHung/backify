@@ -21,13 +21,17 @@ func (m *ProjectMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		projectID := r.Header.Get(HeaderProjectID)
 		if projectID == "" {
-			http.Error(w, `{"error":"missing X-Project-Id header"}`, http.StatusBadRequest)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":"missing X-Project-Id header"}`))
 			return
 		}
 
 		cfg, err := m.configClient.GetProjectConfig(r.Context(), projectID)
 		if err != nil {
-			http.Error(w, `{"error":"project not found or unavailable"}`, http.StatusNotFound)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"project not found or unavailable"}`))
 			return
 		}
 
