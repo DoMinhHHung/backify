@@ -56,3 +56,32 @@ jobs:
 
       - name: Test
         run: uv run pytest -q
+
+  runtime:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: services/runtime
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/runtime/go.mod
+          cache-dependency-path: services/runtime/go.sum
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Unit tests
+        run: |
+          go test ./internal/permission/ -count=1
+          go test ./... -count=1

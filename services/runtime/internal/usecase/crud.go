@@ -26,6 +26,54 @@ func (uc *CRUD) resolveEntity(cfg *domain.ProjectConfig, name string) (string, *
 	return "", nil, domain.ErrNotFound("entity not found")
 }
 
+func crudEnabledFields(cfg *domain.ProjectConfig, entityName, fn string) []string {
+	if cfg == nil {
+		return nil
+	}
+	mod, ok := cfg.Modules["crud"]
+	if !ok || !mod.Enabled {
+		return nil
+	}
+	byEnt, ok := mod.EntityFunctions[entityName]
+	if !ok {
+		return nil
+	}
+	fc, ok := byEnt[fn]
+	if !ok {
+		return nil
+	}
+	return fc.EnabledFields
+}
+
+func isSystemField(name string) bool {
+	switch name {
+	case "id", "createdAt", "created_at", "updatedAt", "updated_at":
+		return true
+	default:
+		return false
+	}
+}
+
+func filterCRUDFields(data map[string]any, allowed []string) map[string]any {
+	out := make(map[string]any)
+	if len(data) == 0 || len(allowed) == 0 {
+		return out
+	}
+	set := make(map[string]struct{}, len(allowed))
+	for _, a := range allowed {
+		set[a] = struct{}{}
+	}
+	for k, v := range data {
+		if isSystemField(k) {
+			continue
+		}
+		if _, ok := set[k]; ok {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 type CreateInput struct {
 	ProjectConfig *domain.ProjectConfig
 	Claims        *domain.AuthClaims
@@ -40,7 +88,15 @@ func (uc *CRUD) Create(ctx context.Context, in CreateInput) (domain.Record, erro
 	}
 	_ = entity
 
-	data, err := uc.permission.CanCreate(in.ProjectConfig, name, in.Claims, in.Data)
+	allowed := crudEnabledFields(in.ProjectConfig, name, "create")
+	data := filterCRUDFields(in.Data, allowed)
+
+	if col, ok := uc.permission.OwnerColumn(in.ProjectConfig, name); ok {
+		delete(data, col)
+		delete(data, toSnakeLocal(col))
+	}
+
+	data, err = uc.permission.CanCreate(in.ProjectConfig, name, in.Claims, data)
 	if err != nil {
 		return nil, err
 	}
@@ -127,12 +183,15 @@ func (uc *CRUD) Update(ctx context.Context, in UpdateInput) (domain.Record, erro
 		return nil, err
 	}
 
+	allowed := crudEnabledFields(in.ProjectConfig, name, "update")
+	data := filterCRUDFields(in.Data, allowed)
+
 	if col, ok := uc.permission.OwnerColumn(in.ProjectConfig, name); ok {
-		delete(in.Data, col)
-		delete(in.Data, toSnakeLocal(col))
+		delete(data, col)
+		delete(data, toSnakeLocal(col))
 	}
 
-	return uc.records.Update(ctx, in.ProjectConfig.SchemaName, name, in.ID, in.Data)
+	return uc.records.Update(ctx, in.ProjectConfig.SchemaName, name, in.ID, data)
 }
 
 type DeleteInput struct {
