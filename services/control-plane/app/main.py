@@ -119,7 +119,7 @@ def create_app() -> FastAPI:
 
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
+        allow_origins=settings.cors_origin_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -155,26 +155,6 @@ def create_app() -> FastAPI:
         return application.openapi_schema
 
     application.openapi = custom_openapi
-    return application
-    settings = get_settings()
-    application = FastAPI(
-        title="Backify Control Plane",
-        version="0.1.0",
-        lifespan=lifespan,
-        docs_url=None if settings.is_production else "/docs",
-        redoc_url=None,
-    )
-    application.add_middleware(RequestContextMiddleware)
-    application.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origin_list,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
-    )
-    register_error_handlers(application)
-    application.include_router(auth_router)
-    application.include_router(projects_router)
 
     @application.get("/health", tags=["internal"])
     async def health() -> JSONResponse:

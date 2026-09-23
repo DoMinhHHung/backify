@@ -1,7 +1,7 @@
 package httpadapter
 
 import (
-	"embed"
+	_ "embed"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
