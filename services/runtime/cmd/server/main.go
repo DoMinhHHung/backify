@@ -22,6 +22,7 @@ import (
 	"github.com/DoMinhHHung/backify/services/runtime/internal/config"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/container"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/domain"
+	"github.com/DoMinhHHung/backify/services/runtime/internal/permission"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/usecase"
 )
 
@@ -45,17 +46,30 @@ func main() {
 
 	schemaMigrator := postgres.NewSchemaMigrator(pool)
 	userRepo := postgres.NewUserRepository(pool)
+	recordRepo := postgres.NewRecordRepository(pool)
+	permEngine := permission.NewEngine()
 	hasher := security.NewBcryptHasher()
 	tokenSvc := security.NewJWTService(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 
 	cache := memory.NewConfigCache(cfg.ConfigCacheTTL)
 	configClient := grpclient.NewCachedConfigClient(rawClient, cache)
 
-	c := container.New(cfg, configClient, cache, schemaMigrator, userRepo, hasher, tokenSvc)
+	c := container.New(
+		cfg,
+		configClient,
+		cache,
+		schemaMigrator,
+		userRepo,
+		hasher,
+		tokenSvc,
+		recordRepo,
+		permEngine,
+	)
 
 	projectMW := middleware.NewProjectMiddleware(c.ConfigClient)
 	authMW := middleware.NewAuthMiddleware(c.TokenService)
 	authHandler := handlers.NewAuthHandler(c.Auth)
+	crudHandler := handlers.NewCRUDHandler(c.CRUD)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
@@ -103,6 +117,12 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(authMW.Handler)
 			r.Get("/auth/me", authHandler.Me)
+
+			r.Post("/{entity}", crudHandler.Create)
+			r.Get("/{entity}", crudHandler.List)
+			r.Get("/{entity}/{id}", crudHandler.Get)
+			r.Patch("/{entity}/{id}", crudHandler.Update)
+			r.Delete("/{entity}/{id}", crudHandler.Delete)
 		})
 
 		r.Get("/me/config", func(w http.ResponseWriter, r *http.Request) {
