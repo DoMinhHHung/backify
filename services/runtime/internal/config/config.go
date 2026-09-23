@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -17,6 +19,10 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	_ = godotenv.Load()
+	_ = godotenv.Load(".env")
+	_ = godotenv.Load("services/runtime/.env")
+
 	cfg := &Config{
 		HTTPAddr:             getEnv("HTTP_ADDR", ":8081"),
 		ControlPlaneGRPCAddr: getEnv("CONTROL_PLANE_GRPC_ADDR", "localhost:9091"),
@@ -29,6 +35,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.InternalAPIKey == "" {
 		return nil, errString("INTERNAL_API_KEY is required")
+	}
+	if cfg.DatabaseURL == "" {
+		return nil, errString("DATABASE_URL is required")
 	}
 	return cfg, nil
 }
