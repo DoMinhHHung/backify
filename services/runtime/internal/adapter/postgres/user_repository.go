@@ -38,16 +38,17 @@ func (r *UserRepository) Create(ctx context.Context, schemaName string, user *do
 	}
 
 	q := fmt.Sprintf(`
-		INSERT INTO %s (
-			%s, %s, %s, %s, %s, %s, %s
-		) VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`,
+	INSERT INTO %s (
+		%s, %s, %s, %s, %s, %s, %s, %s
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`,
 		r.table(schemaName),
 		quoteIdent("id"),
 		quoteIdent("email"),
 		quoteIdent("password"),
 		quoteIdent("full_name"),
 		quoteIdent("phone"),
+		quoteIdent("role"),
 		quoteIdent("created_at"),
 		quoteIdent("updated_at"),
 	)
@@ -58,6 +59,7 @@ func (r *UserRepository) Create(ctx context.Context, schemaName string, user *do
 		user.PasswordHash,
 		nullIfEmpty(user.FullName),
 		nullIfEmpty(user.Phone),
+		user.Role,
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
@@ -72,19 +74,21 @@ func (r *UserRepository) Create(ctx context.Context, schemaName string, user *do
 
 func (r *UserRepository) FindByEmail(ctx context.Context, schemaName, email string) (*domain.User, error) {
 	q := fmt.Sprintf(`
-		SELECT
-			%s, %s, %s,
-			COALESCE(%s, ''),
-			COALESCE(%s, ''),
-			%s, %s
-		FROM %s
-		WHERE %s = $1
+	SELECT
+		%s, %s, %s,
+		COALESCE(%s, ''),
+		COALESCE(%s, ''),
+		COALESCE(%s, 'user'),
+		%s, %s
+	FROM %s
+	WHERE %s = $1
 	`,
 		quoteIdent("id"),
 		quoteIdent("email"),
 		quoteIdent("password"),
 		quoteIdent("full_name"),
 		quoteIdent("phone"),
+		quoteIdent("role"),
 		quoteIdent("created_at"),
 		quoteIdent("updated_at"),
 		r.table(schemaName),
@@ -98,6 +102,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, schemaName, email stri
 		&u.PasswordHash,
 		&u.FullName,
 		&u.Phone,
+		&u.Role,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)
@@ -117,6 +122,7 @@ func (r *UserRepository) FindByID(ctx context.Context, schemaName, id string) (*
 			%s, %s, %s,
 			COALESCE(%s, ''),
 			COALESCE(%s, ''),
+			COALESCE(%s, 'user'),
 			%s, %s
 		FROM %s
 		WHERE %s = $1
@@ -126,6 +132,7 @@ func (r *UserRepository) FindByID(ctx context.Context, schemaName, id string) (*
 		quoteIdent("password"),
 		quoteIdent("full_name"),
 		quoteIdent("phone"),
+		quoteIdent("role"),
 		quoteIdent("created_at"),
 		quoteIdent("updated_at"),
 		r.table(schemaName),
@@ -139,6 +146,7 @@ func (r *UserRepository) FindByID(ctx context.Context, schemaName, id string) (*
 		&u.PasswordHash,
 		&u.FullName,
 		&u.Phone,
+		&u.Role,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)
@@ -150,6 +158,24 @@ func (r *UserRepository) FindByID(ctx context.Context, schemaName, id string) (*
 	}
 	u.Role = "user"
 	return &u, nil
+}
+
+func (r *UserRepository) SetRole(ctx context.Context, schemaName, userID, role string) error {
+	q := fmt.Sprintf(
+		`UPDATE %s SET %s = $1, %s = $2 WHERE %s = $3`,
+		r.table(schemaName),
+		quoteIdent("role"),
+		quoteIdent("updated_at"),
+		quoteIdent("id"),
+	)
+	ct, err := r.pool.Exec(ctx, q, role, time.Now().UTC(), userID)
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return domain.ErrNotFound("user not found")
+	}
+	return nil
 }
 
 func nullIfEmpty(s string) any {

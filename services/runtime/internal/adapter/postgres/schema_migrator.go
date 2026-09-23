@@ -140,6 +140,17 @@ func (m *SchemaMigrator) ensureTable(ctx context.Context, tx pgx.Tx, schemaName 
 		}
 	}
 
+	if strings.EqualFold(entity.Name, "User") {
+		alterRole := fmt.Sprintf(
+			`ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s TEXT NOT NULL DEFAULT 'user'`,
+			table,
+			quoteIdent("role"),
+		)
+		if _, err := tx.Exec(ctx, alterRole); err != nil {
+			return fmt.Errorf("ensure role column: %w", err)
+		}
+	}
+
 	return nil
 }
 

@@ -96,6 +96,31 @@ func main() {
 		json.NewEncoder(w).Encode(out)
 	})
 
+	r.Post("/internal/projects/{projectID}/users/{userID}/role", func(w http.ResponseWriter, r *http.Request) {
+		key := r.Header.Get("X-Internal-Key")
+		if key == "" || key != cfg.InternalAPIKey {
+			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		var body struct {
+			Role string `json:"role"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
+			return
+		}
+		err := c.PromoteUser.Execute(r.Context(), usecase.PromoteUserInput{
+			ProjectID: chi.URLParam(r, "projectID"),
+			UserID:    chi.URLParam(r, "userID"),
+			Role:      body.Role,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	r.Get("/internal/config/{projectID}", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "projectID")
 		cfg, err := c.ConfigClient.GetProjectConfig(r.Context(), projectID)

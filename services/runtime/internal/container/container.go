@@ -14,6 +14,7 @@ type Container struct {
 	BootstrapSchema *usecase.BootstrapSchema
 	Auth            *usecase.Auth
 	CRUD            *usecase.CRUD
+	PromoteUser     *usecase.PromoteUser
 	TokenService    port.TokenService
 }
 
@@ -28,6 +29,7 @@ func New(
 	records port.RecordRepository,
 	permission port.PermissionEngine,
 ) *Container {
+
 	c := &Container{
 		Config:         cfg,
 		ConfigClient:   configClient,
@@ -35,8 +37,10 @@ func New(
 		SchemaMigrator: schemaMigrator,
 		TokenService:   tokens,
 	}
+
 	c.BootstrapSchema = usecase.NewBootstrapSchema(configClient, schemaMigrator)
 	c.Auth = usecase.NewAuth(users, hasher, tokens)
 	c.CRUD = usecase.NewCRUD(records, permission)
+	c.PromoteUser = usecase.NewPromoteUser(users, configClient)
 	return c
 }
