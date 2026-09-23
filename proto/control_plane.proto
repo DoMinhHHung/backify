@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package backify.controlplane.v1;
 
+option go_package = "github.com/DoMinhHHung/backify/services/runtime/internal/adapter/grpc/pb;pb";
+
 // ControlPlaneService is the internal, service-to-service contract for
 // reading project data. It is never exposed to end users directly —
 // callers (e.g. the Auth Service) authenticate with the same shared

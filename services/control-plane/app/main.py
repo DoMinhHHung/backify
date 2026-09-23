@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse
 
 from app.adapter.grpc.server import create_grpc_server
 from app.adapter.http.error_handlers import register_error_handlers
-from app.adapter.http.middleware import RequestContextMiddleware
 from app.adapter.http.routers import auth_router, projects_router
 from app.adapter.messaging.noop_publisher import NoopEventPublisher
 from app.adapter.messaging.outbox_relay import OutboxRelay
@@ -105,22 +104,56 @@ def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(
         title="Backify Control Plane",
+        description=(
+            "Dashboard API —.\n\n"
+            "Auth: `Authorization: Bearer <developer_jwt>`.\n"
+            "Internal: header `X-Internal-Key`."
+        ),
         version="0.1.0",
-        lifespan=lifespan,
         docs_url=None if settings.is_production else "/docs",
-        redoc_url=None,
+        redoc_url=None if settings.is_production else "/redoc",
+        openapi_url=None if settings.is_production else "/openapi.json",
+        lifespan=lifespan,
     )
-    application.add_middleware(RequestContextMiddleware)
+
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
+
     register_error_handlers(application)
     application.include_router(auth_router)
     application.include_router(projects_router)
+
+    def custom_openapi():
+        if application.openapi_schema:
+            return application.openapi_schema
+        from fastapi.openapi.utils import get_openapi
+
+        schema = get_openapi(
+            title=application.title,
+            version=application.version,
+            description=application.description,
+            routes=application.routes,
+        )
+        schema.setdefault("components", {}).setdefault("securitySchemes", {})
+        schema["components"]["securitySchemes"]["BearerAuth"] = {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+        schema["components"]["securitySchemes"]["InternalKey"] = {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-Internal-Key",
+        }
+        application.openapi_schema = schema
+        return application.openapi_schema
+
+    application.openapi = custom_openapi
 
     @application.get("/health", tags=["internal"])
     async def health() -> JSONResponse:
