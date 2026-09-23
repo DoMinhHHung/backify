@@ -19,6 +19,7 @@ type ConfigCache struct {
 	ttl  time.Duration
 }
 
+// NewConfigCache tạo cache trong bộ nhớ với thời hạn ttl cho từng cấu hình.
 func NewConfigCache(ttl time.Duration) *ConfigCache {
 	return &ConfigCache{
 		data: make(map[string]entry),
@@ -26,6 +27,7 @@ func NewConfigCache(ttl time.Duration) *ConfigCache {
 	}
 }
 
+// Get trả cấu hình chưa hết hạn theo projectID; entry hết hạn được xem là cache miss.
 func (c *ConfigCache) Get(_ context.Context, projectID string) (*domain.ProjectConfig, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -40,6 +42,7 @@ func (c *ConfigCache) Get(_ context.Context, projectID string) (*domain.ProjectC
 	return e.cfg, true
 }
 
+// Set lưu cấu hình theo ProjectID và đặt thời điểm hết hạn tính từ lúc gọi.
 func (c *ConfigCache) Set(_ context.Context, cfg *domain.ProjectConfig) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -50,6 +53,7 @@ func (c *ConfigCache) Set(_ context.Context, cfg *domain.ProjectConfig) {
 	}
 }
 
+// Invalidate xóa cấu hình của projectID khỏi cache nếu có.
 func (c *ConfigCache) Invalidate(_ context.Context, projectID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

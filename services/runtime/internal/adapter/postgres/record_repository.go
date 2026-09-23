@@ -25,6 +25,8 @@ func (r *RecordRepository) tableRef(schemaName, table string) string {
 	return quoteIdent(schemaName) + "." + quoteIdent(toSnake(table))
 }
 
+// Create thêm id nếu thiếu, ghi đè created_at và updated_at trong columns rồi chèn
+// bản ghi. Map columns đầu vào bị thay đổi và lỗi PostgreSQL được bọc với ngữ cảnh insert.
 func (r *RecordRepository) Create(ctx context.Context, schemaName, table string, columns map[string]any) (domain.Record, error) {
 	if _, ok := columns["id"]; !ok {
 		columns["id"] = uuid.NewString()
@@ -60,6 +62,8 @@ func (r *RecordRepository) Create(ctx context.Context, schemaName, table string,
 	return scanRecord(rows)
 }
 
+// FindByID trả ErrNotFound khi id không phải UUID, nil khi không có hàng, hoặc bản
+// ghi với tên cột đã đổi sang camelCase.
 func (r *RecordRepository) FindByID(ctx context.Context, schemaName, table, id string) (domain.Record, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return nil, domain.ErrNotFound("record not found")
@@ -80,6 +84,8 @@ func (r *RecordRepository) FindByID(ctx context.Context, schemaName, table, id s
 	return rec, nil
 }
 
+// List trả các bản ghi mới nhất trước cùng tổng số hàng sau bộ lọc owner. Limit ngoài
+// khoảng 1..100 mặc định thành 20; offset âm mặc định thành 0.
 func (r *RecordRepository) List(ctx context.Context, schemaName, table string, ownerColumn, ownerID string, limit, offset int) ([]domain.Record, int, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
@@ -135,6 +141,8 @@ func (r *RecordRepository) List(ctx context.Context, schemaName, table string, o
 	return items, total, nil
 }
 
+// Update từ chối id không phải UUID, loại id và created_at khỏi columns, ghi updated_at
+// hiện tại rồi trả bản ghi sau cập nhật. Map columns đầu vào bị thay đổi.
 func (r *RecordRepository) Update(ctx context.Context, schemaName, table, id string, columns map[string]any) (domain.Record, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return nil, domain.ErrNotFound("record not found")
@@ -173,6 +181,7 @@ func (r *RecordRepository) Update(ctx context.Context, schemaName, table, id str
 	return scanRecord(rows)
 }
 
+// Delete xóa bản ghi theo UUID và trả ErrNotFound khi id không hợp lệ hoặc không có hàng bị xóa.
 func (r *RecordRepository) Delete(ctx context.Context, schemaName, table, id string) error {
 	if _, err := uuid.Parse(id); err != nil {
 		return domain.ErrNotFound("record not found")
@@ -188,6 +197,8 @@ func (r *RecordRepository) Delete(ctx context.Context, schemaName, table, id str
 	return nil
 }
 
+// scanRecord đọc tối đa một hàng hiện tại, đổi tên cột snake_case sang camelCase và
+// biểu diễn UUID nhị phân dưới dạng chuỗi; hết hàng được biểu diễn bằng nil, nil.
 func scanRecord(rows pgx.Rows) (domain.Record, error) {
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {

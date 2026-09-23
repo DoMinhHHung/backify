@@ -19,6 +19,8 @@ type ConfigClient struct {
 	apiKey string
 }
 
+// NewConfigClient tạo client control plane dùng TLS hệ thống khi useTLS là true,
+// hoặc kết nối không mã hóa khi useTLS là false.
 func NewConfigClient(addr string, apiKey string, useTLS bool) (*ConfigClient, error) {
 	var opts grpc.DialOption
 	if useTLS {
@@ -36,10 +38,12 @@ func NewConfigClient(addr string, apiKey string, useTLS bool) (*ConfigClient, er
 	}, nil
 }
 
+// withAuth gắn khóa API nội bộ vào metadata của request gửi đi.
 func (c *ConfigClient) withAuth(ctx context.Context) context.Context {
 	return metadata.AppendToOutgoingContext(ctx, "x-internal-key", c.apiKey)
 }
 
+// GetProject lấy metadata dự án từ control plane và truyền nguyên lỗi gRPC cho caller.
 func (c *ConfigClient) GetProject(ctx context.Context, projectID string) (*domain.ProjectMeta, error) {
 	ctx = c.withAuth(ctx)
 	resp, err := c.client.GetProject(ctx, &pb.GetProjectRequest{ProjectId: projectID})
@@ -56,6 +60,8 @@ func (c *ConfigClient) GetProject(ctx context.Context, projectID string) (*domai
 	}, nil
 }
 
+// GetProjectConfig lấy cấu hình runtime của dự án và giải mã entities cùng modules từ config_json.
+// Hàm truyền nguyên lỗi gRPC và bọc lỗi JSON với ngữ cảnh parse config_json.
 func (c *ConfigClient) GetProjectConfig(ctx context.Context, projectID string) (*domain.ProjectConfig, error) {
 	ctx = c.withAuth(ctx)
 	resp, err := c.client.GetProjectConfig(ctx, &pb.GetProjectConfigRequest{ProjectId: projectID})

@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+// InternalKey tạo middleware so sánh X-Internal-Key bằng subtle.ConstantTimeCompare
+// và trả 401 dạng JSON khi giá trị không khớp.
 func InternalKey(expected string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

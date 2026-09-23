@@ -10,6 +10,8 @@ import (
 	"github.com/DoMinhHHung/backify/services/runtime/internal/domain"
 )
 
+// StructuredLog ghi method, path, status, thời lượng mili giây, request ID,
+// project ID và user ID sau khi handler hoàn tất.
 func StructuredLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()

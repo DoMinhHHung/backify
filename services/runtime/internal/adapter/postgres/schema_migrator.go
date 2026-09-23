@@ -19,6 +19,8 @@ func NewSchemaMigrator(pool *pgxpool.Pool) *SchemaMigrator {
 	return &SchemaMigrator{pool: pool}
 }
 
+// AppliedVersion trả phiên bản schema đã ghi nhận, hoặc 0 khi truy vấn metadata trả
+// lỗi có nội dung "does not exist"; các lỗi khác được truyền cho caller.
 func (m *SchemaMigrator) AppliedVersion(ctx context.Context, schemaName string) (int32, error) {
 	var version int32
 	query := fmt.Sprintf(`
@@ -38,6 +40,8 @@ func (m *SchemaMigrator) AppliedVersion(ctx context.Context, schemaName string) 
 	return version, nil
 }
 
+// EnsureSchema đồng bộ schema trong một transaction khi phiên bản cấu hình mới hơn:
+// tạo schema, bảng, khóa ngoại n-1 và cập nhật metadata phiên bản.
 func (m *SchemaMigrator) EnsureSchema(ctx context.Context, cfg *domain.ProjectConfig) error {
 	applied, err := m.AppliedVersion(ctx, cfg.SchemaName)
 	if err != nil {
@@ -91,6 +95,8 @@ func (m *SchemaMigrator) EnsureSchema(ctx context.Context, cfg *domain.ProjectCo
 	return tx.Commit(ctx)
 }
 
+// createTable tạo bảng nếu thiếu, bổ sung các cột thời gian và tự tạo UUID id khi
+// entity chưa khai báo; entity User còn được bảo đảm có cột role mặc định là user.
 func (m *SchemaMigrator) createTable(ctx context.Context, tx pgx.Tx, schemaName string, entity domain.Entity) error {
 	table := quoteIdent(schemaName) + "." + quoteIdent(toSnake(entity.Name))
 
@@ -142,6 +148,7 @@ func (m *SchemaMigrator) createTable(ctx context.Context, tx pgx.Tx, schemaName 
 	return nil
 }
 
+// ensureConstraints tạo các khóa ngoại chưa có cho relation n-1 và dùng ON DELETE RESTRICT.
 func (m *SchemaMigrator) ensureConstraints(ctx context.Context, tx pgx.Tx, schemaName string, entity domain.Entity) error {
 	table := quoteIdent(schemaName) + "." + quoteIdent(toSnake(entity.Name))
 	tableName := toSnake(entity.Name)
@@ -181,6 +188,8 @@ func (m *SchemaMigrator) ensureConstraints(ctx context.Context, tx pgx.Tx, schem
 	return nil
 }
 
+// columnDef chuyển cấu hình field được hỗ trợ thành định nghĩa cột PostgreSQL và
+// trả lỗi cho loại field không hỗ trợ.
 func columnDef(f domain.Field) (string, error) {
 	name := quoteIdent(toSnake(f.Name))
 	var typ string

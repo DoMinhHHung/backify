@@ -13,6 +13,7 @@ type RateLimiter struct {
 	window time.Duration
 }
 
+// NewRateLimiter tạo bộ giới hạn tối đa limit request cho mỗi khóa trong một window.
 func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
 	return &RateLimiter{
 		hits:   make(map[string][]time.Time),
@@ -21,6 +22,8 @@ func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
 	}
 }
 
+// Middleware giới hạn theo X-Project-Id, hoặc RemoteAddr khi header này trống,
+// và trả 429 dạng JSON khi khóa đã đạt giới hạn.
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := r.Header.Get(HeaderProjectID)

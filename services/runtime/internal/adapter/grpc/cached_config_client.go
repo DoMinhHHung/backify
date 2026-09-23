@@ -19,10 +19,13 @@ func NewCachedConfigClient(inner port.ConfigClient, cache port.ConfigCache) *Cac
 	}
 }
 
+// GetProject chuyển tiếp trực tiếp tới client gốc mà không dùng cache.
 func (c *CachedConfigClient) GetProject(ctx context.Context, projectID string) (*domain.ProjectMeta, error) {
 	return c.inner.GetProject(ctx, projectID)
 }
 
+// GetProjectConfig trả cấu hình trong cache nếu còn hiệu lực; nếu không, hàm lấy từ
+// client gốc, lưu kết quả thành công vào cache rồi trả về.
 func (c *CachedConfigClient) GetProjectConfig(ctx context.Context, projectID string) (*domain.ProjectConfig, error) {
 	if cfg, ok := c.cache.Get(ctx, projectID); ok {
 		return cfg, nil

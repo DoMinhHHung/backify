@@ -16,10 +16,12 @@ func NewConfigEvents(cache port.ConfigCache, bootstrap *BootstrapSchema) *Config
 	return &ConfigEvents{cache: cache, bootstrap: bootstrap}
 }
 
+// HandleProjectCreated xóa cache và bootstrap schema cho dự án vừa tạo.
 func (uc *ConfigEvents) HandleProjectCreated(ctx context.Context, projectID string) error {
 	return uc.refresh(ctx, projectID, "project.created")
 }
 
+// HandleConfigUpdated xóa cache và bootstrap schema theo cấu hình dự án mới.
 func (uc *ConfigEvents) HandleConfigUpdated(ctx context.Context, projectID string) error {
 	return uc.refresh(ctx, projectID, "project.config.updated")
 }

@@ -17,6 +17,7 @@ func NewCRUD(records port.RecordRepository, permission port.PermissionEngine) *C
 	return &CRUD{records: records, permission: permission}
 }
 
+// resolveEntity tìm entity không phân biệt hoa thường nhưng luôn ẩn entity User khỏi CRUD công khai.
 func (uc *CRUD) resolveEntity(cfg *domain.ProjectConfig, name string) (string, *domain.Entity, error) {
 	for k, e := range cfg.Entities {
 		if strings.EqualFold(k, name) {
@@ -29,6 +30,8 @@ func (uc *CRUD) resolveEntity(cfg *domain.ProjectConfig, name string) (string, *
 	return "", nil, domain.ErrNotFound("entity not found")
 }
 
+// crudEnabledFields trả các field được bật cho thao tác của entity, hoặc nil khi
+// module, entity hay thao tác chưa được bật.
 func crudEnabledFields(cfg *domain.ProjectConfig, entityName, fn string) []string {
 	if cfg == nil {
 		return nil
@@ -57,6 +60,7 @@ func isSystemField(name string) bool {
 	}
 }
 
+// filterCRUDFields chỉ sao chép field nằm trong allowlist và luôn loại các field hệ thống.
 func filterCRUDFields(data map[string]any, allowed []string) map[string]any {
 	out := make(map[string]any)
 	if len(data) == 0 || len(allowed) == 0 {
@@ -84,6 +88,8 @@ type CreateInput struct {
 	Data          map[string]any
 }
 
+// Create lọc dữ liệu theo cấu hình, loại owner do client cung cấp, áp dụng owner từ
+// claims rồi tạo bản ghi trong schema dự án.
 func (uc *CRUD) Create(ctx context.Context, in CreateInput) (domain.Record, error) {
 	name, entity, err := uc.resolveEntity(in.ProjectConfig, in.EntityName)
 	if err != nil {
@@ -114,6 +120,7 @@ type GetInput struct {
 	ID            string
 }
 
+// Get lấy bản ghi theo ID và chỉ trả về sau khi permission engine cho phép đọc.
 func (uc *CRUD) Get(ctx context.Context, in GetInput) (domain.Record, error) {
 	name, _, err := uc.resolveEntity(in.ProjectConfig, in.EntityName)
 	if err != nil {
@@ -142,6 +149,7 @@ type ListInput struct {
 	Offset        int
 }
 
+// List áp dụng bộ lọc owner từ permission engine rồi trả danh sách cùng tổng số bản ghi.
 func (uc *CRUD) List(ctx context.Context, in ListInput) (*domain.ListResult, error) {
 	name, _, err := uc.resolveEntity(in.ProjectConfig, in.EntityName)
 	if err != nil {
@@ -168,6 +176,8 @@ type UpdateInput struct {
 	Data          map[string]any
 }
 
+// Update kiểm tra bản ghi và quyền sở hữu trước khi lọc field cho phép; owner và
+// field hệ thống do client gửi không được cập nhật.
 func (uc *CRUD) Update(ctx context.Context, in UpdateInput) (domain.Record, error) {
 	name, _, err := uc.resolveEntity(in.ProjectConfig, in.EntityName)
 	if err != nil {
@@ -204,6 +214,7 @@ type DeleteInput struct {
 	ID            string
 }
 
+// Delete kiểm tra bản ghi tồn tại và quyền xóa trước khi gọi repository.
 func (uc *CRUD) Delete(ctx context.Context, in DeleteInput) error {
 	name, _, err := uc.resolveEntity(in.ProjectConfig, in.EntityName)
 	if err != nil {

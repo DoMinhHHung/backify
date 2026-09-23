@@ -20,6 +20,7 @@ func NewCRUDHandler(crud *usecase.CRUD) *CRUDHandler {
 	return &CRUDHandler{crud: crud}
 }
 
+// Create tạo bản ghi cho entity trong URL bằng project config và claims của request.
 func (h *CRUDHandler) Create(w http.ResponseWriter, r *http.Request) {
 	cfg, claims, ok := ctxAuth(w, r)
 	if !ok {
@@ -46,6 +47,7 @@ func (h *CRUDHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, rec)
 }
 
+// List liệt kê bản ghi của entity với limit và offset lấy từ query string.
 func (h *CRUDHandler) List(w http.ResponseWriter, r *http.Request) {
 	cfg, claims, ok := ctxAuth(w, r)
 	if !ok {
@@ -69,6 +71,7 @@ func (h *CRUDHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// Get trả một bản ghi theo entity và id trong URL sau khi kiểm tra quyền đọc.
 func (h *CRUDHandler) Get(w http.ResponseWriter, r *http.Request) {
 	cfg, claims, ok := ctxAuth(w, r)
 	if !ok {
@@ -90,6 +93,7 @@ func (h *CRUDHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rec)
 }
 
+// Update cập nhật các trường được phép của bản ghi theo entity và id trong URL.
 func (h *CRUDHandler) Update(w http.ResponseWriter, r *http.Request) {
 	cfg, claims, ok := ctxAuth(w, r)
 	if !ok {
@@ -118,6 +122,7 @@ func (h *CRUDHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rec)
 }
 
+// Delete xóa bản ghi được phép truy cập và trả trạng thái 204 khi thành công.
 func (h *CRUDHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	cfg, claims, ok := ctxAuth(w, r)
 	if !ok {
@@ -138,6 +143,8 @@ func (h *CRUDHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ctxAuth lấy project config và claims từ context; khi thiếu dữ liệu, hàm tự ghi
+// phản hồi lỗi tương ứng và trả false.
 func ctxAuth(w http.ResponseWriter, r *http.Request) (*domain.ProjectConfig, *domain.AuthClaims, bool) {
 	cfg, ok := domain.ProjectConfigFromContext(r.Context())
 	if !ok {

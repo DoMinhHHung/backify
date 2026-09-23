@@ -22,6 +22,9 @@ type Config struct {
 	RabbitMQQueue        string
 }
 
+// Load nạp lần lượt các file .env được hỗ trợ mà không ghi đè biến môi trường đã có,
+// áp dụng giá trị mặc định và kiểm tra khóa nội bộ, URL cơ sở dữ liệu cùng JWT secret.
+// Duration không hợp lệ được thay bằng giá trị mặc định tương ứng.
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 	_ = godotenv.Load(".env")

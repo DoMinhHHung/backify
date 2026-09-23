@@ -101,6 +101,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    """Tạo ứng dụng control plane và chỉ mở endpoint OpenAPI ngoài production."""
     settings = get_settings()
     application = FastAPI(
         title="Backify Control Plane",
@@ -129,6 +130,7 @@ def create_app() -> FastAPI:
     application.include_router(projects_router)
 
     def custom_openapi():
+        """Tạo một lần schema OpenAPI có cơ chế xác thực bearer và khóa nội bộ."""
         if application.openapi_schema:
             return application.openapi_schema
         from fastapi.openapi.utils import get_openapi

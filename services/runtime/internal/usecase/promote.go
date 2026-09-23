@@ -22,6 +22,7 @@ type PromoteUserInput struct {
 	Role      string
 }
 
+// Execute chỉ chấp nhận role admin hoặc user, lấy schema từ cấu hình dự án rồi cập nhật user.
 func (uc *PromoteUser) Execute(ctx context.Context, in PromoteUserInput) error {
 	if in.Role != "admin" && in.Role != "user" {
 		return domain.ErrValidation("role must be admin or user")

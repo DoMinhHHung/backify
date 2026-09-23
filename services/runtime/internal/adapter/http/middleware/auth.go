@@ -21,6 +21,8 @@ func NewAuthMiddleware(tokens port.TokenService) *AuthMiddleware {
 	return &AuthMiddleware{tokens: tokens}
 }
 
+// Handler yêu cầu Bearer access token hợp lệ, đối chiếu project trong token với
+// project config nếu có, rồi đưa claims vào context cho handler phía sau.
 func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := r.Header.Get("Authorization")
@@ -46,6 +48,7 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 	})
 }
 
+// AuthClaimsFromContext trả claims do AuthMiddleware lưu và báo false nếu không có.
 func AuthClaimsFromContext(ctx context.Context) (*domain.AuthClaims, bool) {
 	c, ok := ctx.Value(authClaimsKey).(*domain.AuthClaims)
 	return c, ok

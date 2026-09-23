@@ -28,6 +28,9 @@ type AuthOutput struct {
 	Tokens *domain.TokenPair
 }
 
+// Signup đăng ký user khi module signup bật và email, password được cho phép. Email
+// được chuẩn hóa, mật khẩu phải dài 8..72 byte, các field tùy chọn bị giới hạn theo
+// cấu hình; kết quả không chứa password hash và kèm cặp token mới.
 func (uc *Auth) Signup(ctx context.Context, in SignupInput) (*AuthOutput, error) {
 	cfg := in.ProjectConfig
 	enabled := enabledFields(cfg, "signup")
@@ -94,6 +97,8 @@ type SigninInput struct {
 	Password      string
 }
 
+// Signin chuẩn hóa email, xác minh mật khẩu và phát hành cặp token; email không tồn
+// tại và mật khẩu sai đều trả ErrInvalidCredentials. Kết quả không chứa password hash.
 func (uc *Auth) Signin(ctx context.Context, in SigninInput) (*AuthOutput, error) {
 	cfg := in.ProjectConfig
 	email := strings.TrimSpace(strings.ToLower(in.Email))
@@ -123,6 +128,7 @@ type RefreshInput struct {
 	RefreshToken  string
 }
 
+// Refresh chỉ phát hành cặp token mới khi refresh token thuộc đúng dự án và user vẫn tồn tại.
 func (uc *Auth) Refresh(ctx context.Context, in RefreshInput) (*domain.TokenPair, error) {
 	claims, err := uc.tokens.ParseRefresh(in.RefreshToken)
 	if err != nil {
@@ -148,6 +154,7 @@ type MeInput struct {
 	UserID        string
 }
 
+// Me trả user theo ID trong schema dự án, xóa password hash và trả ErrNotFound nếu thiếu.
 func (uc *Auth) Me(ctx context.Context, in MeInput) (*domain.User, error) {
 	user, err := uc.users.FindByID(ctx, in.ProjectConfig.SchemaName, in.UserID)
 	if err != nil {

@@ -34,6 +34,8 @@ type eventPayload struct {
 	OccurredAt string `json:"occurredAt"`
 }
 
+// Start kết nối RabbitMQ, khai báo exchange và queue bền vững, bind hai sự kiện cấu
+// hình rồi xử lý delivery bất đồng bộ. Hàm trả về sau khi goroutine tiêu thụ được tạo.
 func (c *RabbitConsumer) Start(ctx context.Context) error {
 	conn, err := amqp.Dial(c.url)
 	if err != nil {
@@ -90,6 +92,8 @@ func (c *RabbitConsumer) Start(ctx context.Context) error {
 	return nil
 }
 
+// handleDelivery xử lý một delivery với timeout 30 giây. Payload lỗi bị loại bỏ,
+// sự kiện không hỗ trợ được ack, lỗi handler được nack để xếp hàng lại.
 func (c *RabbitConsumer) handleDelivery(ctx context.Context, d amqp.Delivery) {
 	var payload eventPayload
 	if err := json.Unmarshal(d.Body, &payload); err != nil {
@@ -124,6 +128,7 @@ func (c *RabbitConsumer) handleDelivery(ctx context.Context, d amqp.Delivery) {
 	_ = d.Ack(false)
 }
 
+// Close đóng channel rồi đóng kết nối RabbitMQ và bỏ qua lỗi đóng.
 func (c *RabbitConsumer) Close() {
 	if c.channel != nil {
 		_ = c.channel.Close()

@@ -31,6 +31,8 @@ type claims struct {
 	jwt.RegisteredClaims
 }
 
+// Issue phát hành cặp token HS256 tại cùng một thời điểm; ExpiresIn là thời hạn
+// access token tính bằng giây.
 func (s *JWTService) Issue(userID, projectID, role string) (*domain.TokenPair, error) {
 	now := time.Now()
 
@@ -50,10 +52,12 @@ func (s *JWTService) Issue(userID, projectID, role string) (*domain.TokenPair, e
 	}, nil
 }
 
+// ParseAccess xác thực chữ ký, hạn dùng và loại access; mọi lỗi được chuyển thành ErrUnauthorized.
 func (s *JWTService) ParseAccess(token string) (*domain.AuthClaims, error) {
 	return s.parse(token, "access")
 }
 
+// ParseRefresh xác thực chữ ký, hạn dùng và loại refresh; mọi lỗi được chuyển thành ErrUnauthorized.
 func (s *JWTService) ParseRefresh(token string) (*domain.AuthClaims, error) {
 	return s.parse(token, "refresh")
 }

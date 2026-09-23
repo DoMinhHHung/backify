@@ -18,6 +18,7 @@ func NewAuthHandler(auth *usecase.Auth) *AuthHandler {
 	return &AuthHandler{auth: auth}
 }
 
+// Signup đăng ký người dùng trong dự án của request và trả người dùng cùng cặp token.
 func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	cfg, ok := domain.ProjectConfigFromContext(r.Context())
 	if !ok {
@@ -45,6 +46,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Signin xác thực email và mật khẩu trong dự án của request rồi trả người dùng cùng cặp token.
 func (h *AuthHandler) Signin(w http.ResponseWriter, r *http.Request) {
 	cfg, ok := domain.ProjectConfigFromContext(r.Context())
 	if !ok {
@@ -76,6 +78,7 @@ func (h *AuthHandler) Signin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Refresh đổi refresh token hợp lệ của dự án hiện tại thành một cặp token mới.
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	cfg, ok := domain.ProjectConfigFromContext(r.Context())
 	if !ok {
@@ -102,6 +105,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tokens)
 }
 
+// Me trả thông tin người dùng từ claims đã được middleware xác thực.
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	cfg, ok := domain.ProjectConfigFromContext(r.Context())
 	if !ok {
@@ -125,6 +129,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, publicUser(user))
 }
 
+// publicUser chuyển User thành payload công khai và loại bỏ password hash.
 func publicUser(u *domain.User) map[string]any {
 	return map[string]any{
 		"id":        u.ID,
@@ -147,6 +152,8 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
+// WriteDomainError ánh xạ DomainError sang mã HTTP và payload JSON; lỗi khác được
+// ghi log rồi chuyển thành phản hồi 500 không chứa chi tiết nội bộ.
 func WriteDomainError(w http.ResponseWriter, err error) {
 	if de, ok := err.(*domain.DomainError); ok {
 		status := http.StatusBadRequest

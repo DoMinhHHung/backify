@@ -28,6 +28,8 @@ func (r *UserRepository) table(schemaName string) string {
 	return quoteIdent(schemaName) + "." + quoteIdent("user")
 }
 
+// Create điền id, thời gian và role mặc định trực tiếp vào user trước khi chèn.
+// Mọi vi phạm unique từ PostgreSQL được chuyển thành ErrEmailTaken.
 func (r *UserRepository) Create(ctx context.Context, schemaName string, user *domain.User) error {
 	if user.ID == "" {
 		user.ID = uuid.NewString()
@@ -75,6 +77,7 @@ func (r *UserRepository) Create(ctx context.Context, schemaName string, user *do
 	return nil
 }
 
+// FindByEmail trả nil, nil khi không tìm thấy và bọc các lỗi PostgreSQL khác.
 func (r *UserRepository) FindByEmail(ctx context.Context, schemaName, email string) (*domain.User, error) {
 	q := fmt.Sprintf(`
 	SELECT
@@ -118,6 +121,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, schemaName, email stri
 	return &u, nil
 }
 
+// FindByID trả nil, nil khi không tìm thấy và bọc các lỗi PostgreSQL khác.
 func (r *UserRepository) FindByID(ctx context.Context, schemaName, id string) (*domain.User, error) {
 	q := fmt.Sprintf(`
 		SELECT
@@ -161,6 +165,7 @@ func (r *UserRepository) FindByID(ctx context.Context, schemaName, id string) (*
 	return &u, nil
 }
 
+// SetRole cập nhật role và updated_at; hàm trả ErrNotFound nếu userID không tồn tại.
 func (r *UserRepository) SetRole(ctx context.Context, schemaName, userID, role string) error {
 	q := fmt.Sprintf(
 		`UPDATE %s SET %s = $1, %s = $2 WHERE %s = $3`,

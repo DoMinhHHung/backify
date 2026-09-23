@@ -35,6 +35,8 @@ type BootstrapSchemaOutput struct {
 	Applied    bool
 }
 
+// Execute vô hiệu hóa cache nếu có, lấy cấu hình mới nhất và chỉ chạy migration khi
+// version hiện tại thấp hơn. Applied cho biết lần gọi này có áp dụng schema hay không.
 func (uc *BootstrapSchema) Execute(ctx context.Context, in BootstrapSchemaInput) (*BootstrapSchemaOutput, error) {
 	if uc.configCache != nil {
 		uc.configCache.Invalidate(ctx, in.ProjectID)

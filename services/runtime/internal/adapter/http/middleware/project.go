@@ -17,6 +17,8 @@ func NewProjectMiddleware(configClient port.ConfigClient) *ProjectMiddleware {
 	return &ProjectMiddleware{configClient: configClient}
 }
 
+// Handler yêu cầu header X-Project-Id, lấy cấu hình tương ứng và đưa cấu hình vào
+// context; header thiếu trả 400, còn mọi lỗi tra cứu hiện được chuyển thành 404.
 func (m *ProjectMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		projectID := r.Header.Get(HeaderProjectID)

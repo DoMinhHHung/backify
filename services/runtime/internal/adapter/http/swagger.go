@@ -10,6 +10,7 @@ import (
 //go:embed openapi.yaml
 var openAPISpec []byte
 
+// MountSwagger đăng ký endpoint OpenAPI YAML và giao diện Swagger UI tại /swagger/.
 func MountSwagger(r chi.Router) {
 	r.Get("/openapi.yaml", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/yaml")

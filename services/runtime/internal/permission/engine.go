@@ -12,6 +12,8 @@ func NewEngine() *Engine {
 	return &Engine{}
 }
 
+// OwnerColumn trả field relation đầu tiên trỏ tới User theo cardinality n-1 hoặc
+// many_to_one; entity hay relation không phù hợp trả "", false.
 func (e *Engine) OwnerColumn(cfg *domain.ProjectConfig, entityName string) (string, bool) {
 	entity, ok := cfg.Entities[entityName]
 	if !ok {
@@ -31,6 +33,8 @@ func (e *Engine) OwnerColumn(cfg *domain.ProjectConfig, entityName string) (stri
 	return "", false
 }
 
+// CanCreate sao chép input và, nếu entity có owner, luôn ghi đè owner bằng user trong claims.
+// Claims nil trả ErrUnauthorized.
 func (e *Engine) CanCreate(cfg *domain.ProjectConfig, entityName string, claims *domain.AuthClaims, input map[string]any) (map[string]any, error) {
 	if claims == nil {
 		return nil, domain.ErrUnauthorized()
@@ -45,6 +49,8 @@ func (e *Engine) CanCreate(cfg *domain.ProjectConfig, entityName string, claims 
 	return out, nil
 }
 
+// CanReadOne cho admin đọc mọi bản ghi và cho phép entity không có owner; người dùng
+// thường chỉ được đọc bản ghi có owner khớp UserID.
 func (e *Engine) CanReadOne(cfg *domain.ProjectConfig, entityName string, claims *domain.AuthClaims, record domain.Record) error {
 	if claims == nil {
 		return domain.ErrUnauthorized()
@@ -68,6 +74,8 @@ func (e *Engine) CanReadOne(cfg *domain.ProjectConfig, entityName string, claims
 	return nil
 }
 
+// CanListFilter trả owner column cùng UserID cho người dùng thường; admin hoặc entity
+// không có owner nhận bộ lọc rỗng. Claims nil trả ErrUnauthorized.
 func (e *Engine) CanListFilter(cfg *domain.ProjectConfig, entityName string, claims *domain.AuthClaims) (string, string, error) {
 	if claims == nil {
 		return "", "", domain.ErrUnauthorized()
@@ -82,6 +90,8 @@ func (e *Engine) CanListFilter(cfg *domain.ProjectConfig, entityName string, cla
 	return col, claims.UserID, nil
 }
 
+// CanUpdate chỉ cho phép cập nhật khi entity không có owner hoặc owner khớp UserID;
+// hàm không áp dụng ngoại lệ admin.
 func (e *Engine) CanUpdate(cfg *domain.ProjectConfig, entityName string, claims *domain.AuthClaims, record domain.Record) error {
 	if claims == nil {
 		return domain.ErrUnauthorized()
@@ -97,6 +107,7 @@ func (e *Engine) CanUpdate(cfg *domain.ProjectConfig, entityName string, claims 
 	return nil
 }
 
+// CanDelete áp dụng cùng quy tắc quyền sở hữu như CanUpdate.
 func (e *Engine) CanDelete(cfg *domain.ProjectConfig, entityName string, claims *domain.AuthClaims, record domain.Record) error {
 	return e.CanUpdate(cfg, entityName, claims, record)
 }
