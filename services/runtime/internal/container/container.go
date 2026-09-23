@@ -12,6 +12,8 @@ type Container struct {
 	ConfigCache     port.ConfigCache
 	SchemaMigrator  port.SchemaMigrator
 	BootstrapSchema *usecase.BootstrapSchema
+	Auth            *usecase.Auth
+	TokenService    port.TokenService
 }
 
 func New(
@@ -19,13 +21,18 @@ func New(
 	configClient port.ConfigClient,
 	configCache port.ConfigCache,
 	schemaMigrator port.SchemaMigrator,
+	users port.UserRepository,
+	hasher port.PasswordHasher,
+	tokens port.TokenService,
 ) *Container {
 	c := &Container{
 		Config:         cfg,
 		ConfigClient:   configClient,
 		ConfigCache:    configCache,
 		SchemaMigrator: schemaMigrator,
+		TokenService:   tokens,
 	}
 	c.BootstrapSchema = usecase.NewBootstrapSchema(configClient, schemaMigrator)
+	c.Auth = usecase.NewAuth(users, hasher, tokens)
 	return c
 }

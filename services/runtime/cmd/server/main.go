@@ -14,9 +14,11 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 
 	grpclient "github.com/DoMinhHHung/backify/services/runtime/internal/adapter/grpc"
+	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/http/handlers"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/http/middleware"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/memory"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/postgres"
+	"github.com/DoMinhHHung/backify/services/runtime/internal/adapter/security"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/config"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/container"
 	"github.com/DoMinhHHung/backify/services/runtime/internal/domain"
@@ -42,13 +44,18 @@ func main() {
 	defer pool.Close()
 
 	schemaMigrator := postgres.NewSchemaMigrator(pool)
+	userRepo := postgres.NewUserRepository(pool)
+	hasher := security.NewBcryptHasher()
+	tokenSvc := security.NewJWTService(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 
 	cache := memory.NewConfigCache(cfg.ConfigCacheTTL)
 	configClient := grpclient.NewCachedConfigClient(rawClient, cache)
 
-	c := container.New(cfg, configClient, cache, schemaMigrator)
+	c := container.New(cfg, configClient, cache, schemaMigrator, userRepo, hasher, tokenSvc)
 
 	projectMW := middleware.NewProjectMiddleware(c.ConfigClient)
+	authMW := middleware.NewAuthMiddleware(c.TokenService)
+	authHandler := handlers.NewAuthHandler(c.Auth)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
@@ -88,6 +95,15 @@ func main() {
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(projectMW.Handler)
+
+		r.Post("/auth/signup", authHandler.Signup)
+		r.Post("/auth/signin", authHandler.Signin)
+		r.Post("/auth/refresh", authHandler.Refresh)
+
+		r.Group(func(r chi.Router) {
+			r.Use(authMW.Handler)
+			r.Get("/auth/me", authHandler.Me)
+		})
 
 		r.Get("/me/config", func(w http.ResponseWriter, r *http.Request) {
 			cfg, ok := domain.ProjectConfigFromContext(r.Context())

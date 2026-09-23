@@ -4,11 +4,18 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func NewPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse database url: %w", err)
+	}
+	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("pgxpool: %w", err)
 	}
